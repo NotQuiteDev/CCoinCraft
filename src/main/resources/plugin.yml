@@ -1,0 +1,4 @@
+name: CCoinCraft
+version: '1.0-SNAPSHOT'
+main: org.lch.cCoinCraft.CCoinCraft
+api-version: '1.20'
