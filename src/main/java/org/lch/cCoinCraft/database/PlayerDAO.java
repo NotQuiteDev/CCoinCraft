@@ -1,5 +1,7 @@
 package org.lch.cCoinCraft.database;
 
+import org.bukkit.util.Consumer;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -72,4 +74,83 @@ public class PlayerDAO {
             }
         }));
     }
+
+    public void updateCoinBalance(UUID uuid, String coinType, double amountDelta) {
+        queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
+            try {
+                // coinType에 따라 컬럼명 결정
+                // ex) "BTC" -> "btc_balance"
+                //     "ETH" -> "eth_balance"
+                //     "DOGE" -> "doge_balance"
+                String columnName = getColumnName(coinType);
+                if (columnName == null) {
+                    // 지원하지 않는 코인
+                    return;
+                }
+
+                String sql = "UPDATE players SET " + columnName + " = " + columnName + " + ? WHERE uuid = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setDouble(1, amountDelta);
+                    ps.setString(2, uuid.toString());
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }));
+    }
+
+    private String getColumnName(String coinType) {
+        switch (coinType.toUpperCase()) {
+            case "BTC": return "btc_balance";
+            case "ETH": return "eth_balance";
+            case "DOGE": return "doge_balance";
+            case "USDT": return "usdt_balance";
+            // 필요하면 추가
+            default: return null; // 지원 안 함
+        }
+    }
+    public void getCoinBalance(UUID uuid, String coinType, Consumer<Double> callback) {
+        queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
+            double balance = 0.0;
+            String columnName = getColumnName(coinType);
+            if (columnName == null) {
+                callback.accept(-1.0);
+                return;
+            }
+
+            String sql = "SELECT " + columnName + " FROM players WHERE uuid = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        balance = rs.getDouble(columnName);
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            // 호출자에게 결과 전달
+            callback.accept(balance);
+        }));
+    }
+    public double getBtcBalance(UUID uuid) {
+        double balance = 0.0;
+        try (Connection conn = databaseManager.getConnection()) {
+            String sql = "SELECT btc_balance FROM players WHERE uuid = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        balance = rs.getDouble("btc_balance");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return balance;
+    }
+
 }

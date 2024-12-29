@@ -50,6 +50,19 @@ public class DatabaseManager {
                             "    timestamp TEXT DEFAULT (datetime('now','localtime'))" +
                             ");";
             stmt.executeUpdate(createBtcHistoryTable);
+            // 새 거래내역 테이블 생성
+            String createHistoryTable =
+                    "CREATE TABLE IF NOT EXISTS transaction_history (" +
+                            "    id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                            "    uuid TEXT NOT NULL," +
+                            "    nickname TEXT NOT NULL," +
+                            "    coin_type TEXT NOT NULL," +
+                            "    amount REAL NOT NULL," +
+                            "    action TEXT NOT NULL," +
+                            "    timestamp TEXT DEFAULT (datetime('now','localtime'))" +
+                            ");";
+            stmt.executeUpdate(createHistoryTable);
+
 
         } catch (SQLException e) {
             e.printStackTrace();
