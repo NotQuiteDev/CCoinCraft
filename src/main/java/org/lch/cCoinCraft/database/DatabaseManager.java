@@ -6,62 +6,57 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+/**
+ * 매번 Connection 열고 닫는 구조 (B 방식).
+ */
 public class DatabaseManager {
 
-    private Connection connection;
-    private final File dbFile;
+    private final String dbUrl;
 
     public DatabaseManager(File dbFile) {
-        this.dbFile = dbFile;
+        // DB 파일 절대경로를 기반으로 JDBC URL 구성
+        this.dbUrl = "jdbc:sqlite:" + dbFile.getAbsolutePath();
     }
 
+    /**
+     * 테이블 생성 등 초기 작업.
+     * 서버 onEnable() 시점에 한 번만 호출.
+     */
     public void initDatabase() {
-        try {
-            // dbFile 경로를 기반으로 JDBC URL 생성
-            String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
+        // 여기서만 임시로 Connection 열어서 테이블 존재 확인/생성
+        try (Connection conn = DriverManager.getConnection(dbUrl);
+             Statement stmt = conn.createStatement()) {
 
-            connection = DriverManager.getConnection(url);
+            String createTableSql =
+                    "CREATE TABLE IF NOT EXISTS players (" +
+                            "    uuid TEXT PRIMARY KEY," +
+                            "    nickname TEXT NOT NULL," +
+                            "    btc_balance REAL DEFAULT 0.0," +
+                            "    eth_balance REAL DEFAULT 0.0," +
+                            "    doge_balance REAL DEFAULT 0.0," +
+                            "    usdt_balance REAL DEFAULT 0.0" +
+                            ");";
 
-            if (connection == null) {
-                throw new SQLException("SQLite 데이터베이스 연결에 실패했습니다.");
-            }
-
-            createPlayersTable();
+            stmt.executeUpdate(createTableSql);
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private void createPlayersTable() {
-        String sql =
-                "CREATE TABLE IF NOT EXISTS players (" +
-                        "    uuid TEXT PRIMARY KEY," +
-                        "    nickname TEXT NOT NULL," +
-                        "    btc_balance REAL DEFAULT 0.0," +
-                        "    eth_balance REAL DEFAULT 0.0," +
-                        "    doge_balance REAL DEFAULT 0.0," +
-                        "    usdt_balance REAL DEFAULT 0.0" +
-                        ");";
-
-        try (Statement stmt = connection.createStatement()) {
-            stmt.executeUpdate(sql);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+    /**
+     * 매번 새로운 Connection을 반환.
+     * QueryTask 안에서 try-with-resources로 쓰고 즉시 닫힘.
+     */
+    public Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(dbUrl);
     }
 
-    public Connection getConnection() {
-        return connection;
-    }
-
+    /**
+     * (B 방식에서는 굳이 유지할 Connection이 없으므로 특별히 닫을 작업 없음)
+     */
     public void closeDatabase() {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
+        // 필요하다면 log 정도 남길 수 있음
+        System.out.println("[DatabaseManager] Nothing to close (B-Mode).");
     }
 }

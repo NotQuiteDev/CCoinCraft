@@ -21,9 +21,10 @@ public class PlayerJoinListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         String nickname = event.getPlayer().getName();
-        getLogger().info("PlayerJoinEvent fired! " + event.getPlayer().getName());
 
-        // DAO의 메소드만 호출
+        getLogger().info("PlayerJoinEvent fired! " + nickname);
+
+        // DB에 플레이어 등록/갱신
         playerDAO.insertOrUpdatePlayer(uuid, nickname);
     }
 }
