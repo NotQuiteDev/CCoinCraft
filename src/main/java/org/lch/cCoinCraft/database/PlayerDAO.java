@@ -6,6 +6,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
+import static org.bukkit.Bukkit.getLogger;
+
 /**
  * 플레이어 정보를 DB에서 INSERT/SELECT/UPDATE 하는 로직만 전담하는 클래스
  */
@@ -25,6 +27,7 @@ public class PlayerDAO {
      */
     public void insertOrUpdatePlayer(UUID uuid, String nickname) {
         queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
+            getLogger().info("insertOrUpdatePlayer called for " + nickname);
             try {
                 // 1) 해당 uuid가 이미 있는지 확인
                 String selectSql = "SELECT nickname FROM players WHERE uuid = ?";

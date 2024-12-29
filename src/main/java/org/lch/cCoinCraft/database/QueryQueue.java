@@ -1,5 +1,7 @@
 package org.lch.cCoinCraft.database;
 
+import org.bukkit.Bukkit;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -14,6 +16,7 @@ public class QueryQueue {
             while (running) {
                 try {
                     QueryTask task = queue.take(); // 큐에서 작업 꺼냄
+                    Bukkit.getLogger().info("Executing a QueryTask...");
                     task.run(); // DB 작업 수행
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

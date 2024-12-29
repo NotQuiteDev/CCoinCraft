@@ -47,3 +47,12 @@ processResources {
         expand props
     }
 }
+
+jar {
+    destinationDirectory = file(
+            "/Users/ichan/Desktop/1.20.1 server/plugins"
+    )
+    manifest {
+        attributes 'Main-Class' : 'org.lch.cCoinCraft.CCoinCraft'
+    }
+}
