@@ -1,0 +1,57 @@
+ore-rewards:
+  DIAMOND_ORE:
+    probability: 0.25      # 25% 확률로 지급 (다이아 희소성 고려)
+    amount: 0.000143     # 약 5,000원 상당의 BTC 지급
+  DEEPSLATE_DIAMOND_ORE:
+    probability: 0.25
+    amount: 0.000143
+
+  IRON_ORE:
+    probability: 0.1
+    amount: 0.000029     # 약 1,000원 상당의 BTC 지급
+  DEEPSLATE_IRON_ORE:
+    probability: 0.1
+    amount: 0.000029
+
+  COAL_ORE:
+    probability: 0.05
+    amount: 0.000007     # 약 250원 상당의 BTC 지급
+  DEEPSLATE_COAL_ORE:
+    probability: 0.05
+    amount: 0.000007
+
+  GOLD_ORE:
+    probability: 0.15
+    amount: 0.000086     # 약 3,000원 상당의 BTC 지급
+  DEEPSLATE_GOLD_ORE:
+    probability: 0.15
+    amount: 0.000086
+
+  EMERALD_ORE:
+    probability: 0.2
+    amount: 0.000215     # 약 7,500원 상당의 BTC 지급
+  DEEPSLATE_EMERALD_ORE:
+    probability: 0.2
+    amount: 0.000215
+
+  LAPIS_ORE:
+    probability: 0.1
+    amount: 0.000029     # 약 1,000원 상당의 BTC 지급
+  DEEPSLATE_LAPIS_ORE:
+    probability: 0.1
+    amount: 0.000029
+
+  REDSTONE_ORE:
+    probability: 0.08
+    amount: 0.000014     # 약 500원 상당의 BTC 지급
+  DEEPSLATE_REDSTONE_ORE:
+    probability: 0.08
+    amount: 0.000014
+
+  NETHER_QUARTZ_ORE:
+    probability: 0.12
+    amount: 0.000022     # 약 750원 상당의 BTC 지급
+
+  NETHER_GOLD_ORE:
+    probability: 0.15
+    amount: 0.000058     # 약 2,000원 상당의 BTC 지급

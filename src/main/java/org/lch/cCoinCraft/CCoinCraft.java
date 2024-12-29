@@ -4,7 +4,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.lch.cCoinCraft.database.DatabaseManager;
 import org.lch.cCoinCraft.database.PlayerDAO;
 import org.lch.cCoinCraft.database.QueryQueue;
+import org.lch.cCoinCraft.listeners.BlockBreakListener;
 import org.lch.cCoinCraft.listeners.PlayerJoinListener;
+import org.lch.cCoinCraft.service.OreRewardService;
 
 import java.io.File;
 
@@ -13,6 +15,7 @@ public class CCoinCraft extends JavaPlugin {
     private DatabaseManager databaseManager;
     private QueryQueue queryQueue;
     private PlayerDAO playerDAO;
+    private OreRewardService oreRewardService;
 
     @Override
     public void onEnable() {
@@ -20,6 +23,14 @@ public class CCoinCraft extends JavaPlugin {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
+
+        // config.yml이 없으면 resources/config.yml를 복사해옴
+        saveDefaultConfig();
+        // config 불러오기
+        // (보통은 saveDefaultConfig() 후 자동으로 불러와지므로 생략 가능하지만,
+        //  혹시 갱신된 내용이 있다면 reloadConfig() 호출)
+        reloadConfig();
+
 
         // DB 파일 지정
         File dbFile = new File(getDataFolder(), "database.db");
@@ -35,11 +46,14 @@ public class CCoinCraft extends JavaPlugin {
 
         // DAO 생성
         playerDAO = new PlayerDAO(databaseManager, queryQueue);
+        oreRewardService = new OreRewardService(this, playerDAO);
 
         // 리스너 등록
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);
+        // BlockBreakListener 등록
+        getServer().getPluginManager().registerEvents(new BlockBreakListener(oreRewardService), this);
 
-        getLogger().info("CCoinCraft enabled (B-mode DB Connection).");
+        getLogger().info("CCoinCraft 플러그인 onEnable 완료");
     }
 
     @Override
