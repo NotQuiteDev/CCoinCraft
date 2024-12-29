@@ -23,11 +23,12 @@ public class DatabaseManager {
      * 서버 onEnable() 시점에 한 번만 호출.
      */
     public void initDatabase() {
-        // 여기서만 임시로 Connection 열어서 테이블 존재 확인/생성
+        // 기존 players 테이블 생성 로직
         try (Connection conn = DriverManager.getConnection(dbUrl);
              Statement stmt = conn.createStatement()) {
 
-            String createTableSql =
+            // players 테이블
+            String createPlayersTable =
                     "CREATE TABLE IF NOT EXISTS players (" +
                             "    uuid TEXT PRIMARY KEY," +
                             "    nickname TEXT NOT NULL," +
@@ -36,8 +37,19 @@ public class DatabaseManager {
                             "    doge_balance REAL DEFAULT 0.0," +
                             "    usdt_balance REAL DEFAULT 0.0" +
                             ");";
+            stmt.executeUpdate(createPlayersTable);
 
-            stmt.executeUpdate(createTableSql);
+            // btc_history 테이블
+            String createBtcHistoryTable =
+                    "CREATE TABLE IF NOT EXISTS btc_history (" +
+                            "    id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                            "    uuid TEXT NOT NULL," +
+                            "    nickname TEXT NOT NULL," +
+                            "    amount_btc REAL NOT NULL," +
+                            "    reason TEXT NOT NULL," +
+                            "    timestamp TEXT DEFAULT (datetime('now','localtime'))" +
+                            ");";
+            stmt.executeUpdate(createBtcHistoryTable);
 
         } catch (SQLException e) {
             e.printStackTrace();

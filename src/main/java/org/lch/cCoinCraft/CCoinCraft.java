@@ -1,6 +1,7 @@
 package org.lch.cCoinCraft;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import org.lch.cCoinCraft.database.BtcHistoryDAO;
 import org.lch.cCoinCraft.database.DatabaseManager;
 import org.lch.cCoinCraft.database.PlayerDAO;
 import org.lch.cCoinCraft.database.QueryQueue;
@@ -44,9 +45,12 @@ public class CCoinCraft extends JavaPlugin {
         // QueryQueue 초기화
         queryQueue = new QueryQueue();
 
+
         // DAO 생성
+        BtcHistoryDAO btcHistoryDAO = new BtcHistoryDAO(databaseManager, queryQueue);
         playerDAO = new PlayerDAO(databaseManager, queryQueue);
-        oreRewardService = new OreRewardService(this, playerDAO);
+        // OreRewardService 생성 시, btcHistoryDAO도 주입
+        oreRewardService = new OreRewardService(this, playerDAO, btcHistoryDAO);
 
         // 리스너 등록
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);

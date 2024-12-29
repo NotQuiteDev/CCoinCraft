@@ -55,3 +55,10 @@ ore-rewards:
   NETHER_GOLD_ORE:
     probability: 0.15
     amount: 0.000058     # 약 2,000원 상당의 BTC 지급
+
+  COPPER_ORE:
+    probability: 0.1
+    amount: 0.000015     # 약 500원 상당의 BTC 지급
+  DEEPSLATE_COPPER_ORE:
+    probability: 0.1
+    amount: 0.000015

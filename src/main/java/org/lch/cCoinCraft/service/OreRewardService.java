@@ -5,6 +5,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.lch.cCoinCraft.CCoinCraft;
+import org.lch.cCoinCraft.database.BtcHistoryDAO;
 import org.lch.cCoinCraft.database.PlayerDAO;
 
 import java.text.DecimalFormat;
@@ -14,6 +15,7 @@ public class OreRewardService {
 
     private final CCoinCraft plugin;
     private final PlayerDAO playerDAO;
+    private final BtcHistoryDAO btcHistoryDAO;
 
     // 임시 환율 (1 BTC = 30,000,000원 라고 가정)
     // 나중에 Coingecko API 클래스를 만들어, 거기서 받아오면 됨.
@@ -24,9 +26,10 @@ public class OreRewardService {
     private static final DecimalFormat BTC_FORMAT = new DecimalFormat("0.########");
     private static final DecimalFormat KRW_FORMAT = new DecimalFormat("###,###");
 
-    public OreRewardService(CCoinCraft plugin, PlayerDAO playerDAO) {
+    public OreRewardService(CCoinCraft plugin, PlayerDAO playerDAO,BtcHistoryDAO btcHistoryDAO) {
         this.plugin = plugin;
         this.playerDAO = playerDAO;
+        this.btcHistoryDAO = btcHistoryDAO;
     }
 
     /**
@@ -75,6 +78,15 @@ public class OreRewardService {
                     "§e[CCC] %s을(를) 채굴하여 %s BTC를 얻었습니다. (~%s원 가치)",
                     oreDisplayName, btcFormatted, krwFormatted
             );
+
+            // DB: 획득 기록 남기기
+            btcHistoryDAO.insertHistory(
+                    uuid.toString(),
+                    player.getName(),
+                    amountBtc,
+                    blockType.name()  // 여기서 reason을 "DIAMOND_ORE" 등으로
+            );
+
 
             player.sendMessage(message);
         }
