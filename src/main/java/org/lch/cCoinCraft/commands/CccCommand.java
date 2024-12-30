@@ -28,17 +28,17 @@ public class CccCommand implements CommandExecutor {
         Player player = (Player) sender;
 
         if (args.length < 2) {
-            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc <coin> [buy/sell/balance] <amount>");
+            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc [buy/sell/balance] <coin> <amount>");
             return true;
         }
 
-        String coinType = args[0].toUpperCase();
-        String action = args[1].toLowerCase();
+        String action = args[0].toLowerCase();
+        String coinType = args[1].toUpperCase();
 
         switch (action) {
             case "buy":
                 if (args.length < 3) {
-                    player.sendMessage(ChatColor.RED + "[CCC] Usage: /ccc " + coinType + " buy <amount>");
+                    player.sendMessage(ChatColor.RED + "[CCC] Usage: /ccc buy " + coinType + " <amount>");
                     return true;
                 }
                 double buyAmount = parseDoubleSafe(args[2]);
@@ -51,7 +51,7 @@ public class CccCommand implements CommandExecutor {
 
             case "sell":
                 if (args.length < 3) {
-                    player.sendMessage(ChatColor.RED + "[CCC] Usage: /ccc " + coinType + " sell <amount>");
+                    player.sendMessage(ChatColor.RED + "[CCC] Usage: /ccc sell " + coinType + " <amount>");
                     return true;
                 }
                 double sellAmount = parseDoubleSafe(args[2]);
