@@ -4,6 +4,14 @@ main: org.lch.cCoinCraft.CCoinCraft
 api-version: '1.20'
 commands:
   ccc:
-    description: CCoinCraft main command
-    usage: /ccc btc [buy/sell/balance] <amount>
-    aliases: [ccc]
+    description: Main command for the CCoinCraft plugin
+    usage: /ccc <coin> [buy/sell/balance] <amount>
+    aliases: [ccoincraft]
+    permission: ccc.use
+    permission-message: "You don't have permission to use this command."
+
+permissions:
+  ccc.use:
+    description: Allows usage of basic CCC commands
+    default: true
+  # 더 이상 특정 코인/액션에 대한 권한을 추가하지 않습니다.

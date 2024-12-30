@@ -3,7 +3,6 @@ package org.lch.cCoinCraft.database;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.function.Consumer;
 
 public class BtcHistoryDAO {
 
@@ -16,19 +15,19 @@ public class BtcHistoryDAO {
     }
 
     /**
-     * BTC를 얻었을 때 기록을 남기는 메소드
+     * BTC 거래 내역 INSERT
      * @param uuid      플레이어 UUID
-     * @param nickname  플레이어 현재 닉네임
-     * @param amountBtc 얻은 BTC 양
-     * @param reason    예: "DIAMOND_ORE", "quest_reward" 등
+     * @param nickname  닉네임
+     * @param amount    거래 수량 (양수면 구매, 음수면 판매)
+     * @param reason    "BUY_BTC" or "SELL_BTC"
      */
-    public void insertHistory(String uuid, String nickname, double amountBtc, String reason) {
+    public void insertHistory(String uuid, String nickname, double amount, String reason) {
         queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
-            String sql = "INSERT INTO btc_history (uuid, nickname, amount_btc, reason) VALUES (?, ?, ?, ?)";
+            String sql = "INSERT INTO btc_transaction_history (uuid, nickname, amount, reason) VALUES (?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, uuid);
                 ps.setString(2, nickname);
-                ps.setDouble(3, amountBtc);
+                ps.setDouble(3, amount);
                 ps.setString(4, reason);
                 ps.executeUpdate();
             } catch (SQLException e) {

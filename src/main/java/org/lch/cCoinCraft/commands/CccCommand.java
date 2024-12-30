@@ -1,14 +1,12 @@
 package org.lch.cCoinCraft.commands;
 
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.lch.cCoinCraft.CCoinCraft;
-import org.lch.cCoinCraft.database.PlayerDAO;
 import org.lch.cCoinCraft.service.BtcTransactionService;
+import org.lch.cCoinCraft.database.PlayerDAO;
 
 public class CccCommand implements CommandExecutor {
 
@@ -22,7 +20,6 @@ public class CccCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        // /ccc btc [buy/sell/balance] <amount>
         if (!(sender instanceof Player)) {
             sender.sendMessage("Only players can use this command.");
             return true;
@@ -30,62 +27,61 @@ public class CccCommand implements CommandExecutor {
 
         Player player = (Player) sender;
 
-        if (args.length < 1) {
-            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc btc [buy/sell/balance] <amount>");
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc <coin> [buy/sell/balance] <amount>");
             return true;
         }
 
-        String subCmd = args[0].toLowerCase(); // "btc"
+        String coinType = args[0].toUpperCase();
+        String action = args[1].toLowerCase();
 
-        // 예: "/ccc btc buy 5"
-        if (subCmd.equals("btc")) {
-            if (args.length < 2) {
-                player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc btc [buy/sell/balance] <amount>");
-                return true;
-            }
-            String action = args[1].toLowerCase(); // buy / sell / balance
-            if (action.equals("buy")) {
+        switch (action) {
+            case "buy":
                 if (args.length < 3) {
-                    player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc btc buy <amount>");
+                    player.sendMessage(ChatColor.RED + "[CCC] Usage: /ccc " + coinType + " buy <amount>");
                     return true;
                 }
-                double amount = parseDoubleSafe(args[2]);
-                if (amount <= 0) {
+                double buyAmount = parseDoubleSafe(args[2]);
+                if (buyAmount <= 0) {
                     player.sendMessage(ChatColor.RED + "[CCC] Invalid amount.");
                     return true;
                 }
-                transactionService.buyBitcoin(player, amount);
+                transactionService.buyCoin(player, coinType, buyAmount);
+                break;
 
-            } else if (action.equals("sell")) {
+            case "sell":
                 if (args.length < 3) {
-                    player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc btc sell <amount>");
+                    player.sendMessage(ChatColor.RED + "[CCC] Usage: /ccc " + coinType + " sell <amount>");
                     return true;
                 }
-                double amount = parseDoubleSafe(args[2]);
-                if (amount <= 0) {
+                double sellAmount = parseDoubleSafe(args[2]);
+                if (sellAmount <= 0) {
                     player.sendMessage(ChatColor.RED + "[CCC] Invalid amount.");
                     return true;
                 }
-                transactionService.sellBitcoin(player, amount);
+                transactionService.sellCoin(player, coinType, sellAmount);
+                break;
 
-            } else if (action.equals("balance")) {
-                transactionService.showBalance(player);
+            case "balance":
+                transactionService.showBalance(player, coinType);
+                break;
 
-            } else {
+            default:
                 player.sendMessage(ChatColor.RED + "[CCC] Invalid action: " + action);
-            }
-            return true;
+                break;
         }
 
-        // 그 외 "/ccc ..." 서브명령들은 여기서 처리
         return true;
     }
 
-    private double parseDoubleSafe(String s) {
+    /**
+     * 안전하게 문자열을 double로 변환
+     */
+    private double parseDoubleSafe(String str) {
         try {
-            return Double.parseDouble(s);
+            return Double.parseDouble(str);
         } catch (NumberFormatException e) {
-            return -1;
+            return -1.0;
         }
     }
 }

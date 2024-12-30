@@ -6,6 +6,7 @@ import org.lch.cCoinCraft.commands.CccCommand;
 import org.lch.cCoinCraft.commands.CccCommandTabCompleter;
 import org.lch.cCoinCraft.database.BtcHistoryDAO;
 import org.lch.cCoinCraft.database.DatabaseManager;
+import org.lch.cCoinCraft.database.HistoryDAO;
 import org.lch.cCoinCraft.database.PlayerDAO;
 import org.lch.cCoinCraft.database.QueryQueue;
 import org.lch.cCoinCraft.listeners.BlockBreakListener;
@@ -22,6 +23,8 @@ public class CCoinCraft extends JavaPlugin {
     private QueryQueue queryQueue;
     private PlayerDAO playerDAO;
     private OreRewardService oreRewardService;
+    private BtcHistoryDAO btcHistoryDAO;
+    private HistoryDAO historyDAO;
     private static Economy economy = null;
 
     @Override
@@ -34,6 +37,7 @@ public class CCoinCraft extends JavaPlugin {
             // getServer().getPluginManager().disablePlugin(this);
             return;
         }
+
         // 플러그인 폴더 생성
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
@@ -46,14 +50,11 @@ public class CCoinCraft extends JavaPlugin {
         //  혹시 갱신된 내용이 있다면 reloadConfig() 호출)
         reloadConfig();
 
-
         // DB 파일 지정
         File dbFile = new File(getDataFolder(), "database.db");
 
         // DatabaseManager 생성 (B 방식)
         databaseManager = new DatabaseManager(dbFile);
-
-
 
         // 테이블 생성 (initDatabase)
         databaseManager.initDatabase();
@@ -61,16 +62,16 @@ public class CCoinCraft extends JavaPlugin {
         // QueryQueue 초기화
         queryQueue = new QueryQueue();
 
-
         // DAO 생성
-        BtcHistoryDAO btcHistoryDAO = new BtcHistoryDAO(databaseManager, queryQueue);
+        btcHistoryDAO = new BtcHistoryDAO(databaseManager, queryQueue);
+        historyDAO = new HistoryDAO(databaseManager, queryQueue);
         playerDAO = new PlayerDAO(databaseManager, queryQueue);
+
         // OreRewardService 생성 시, btcHistoryDAO도 주입
         oreRewardService = new OreRewardService(this, playerDAO, btcHistoryDAO);
 
-        // 예: BtcTransactionService 생성
-        BtcTransactionService transactionService = new BtcTransactionService(playerDAO, btcHistoryDAO);
-
+        // BtcTransactionService 생성 시, historyDAO도 주입
+        BtcTransactionService transactionService = new BtcTransactionService(playerDAO, btcHistoryDAO, historyDAO);
 
         // 리스너 등록
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);
@@ -79,8 +80,10 @@ public class CCoinCraft extends JavaPlugin {
 
         // 커맨드 등록
         getCommand("ccc").setExecutor(new CccCommand(playerDAO, transactionService));
+
         // TabCompleter 등록
         this.getCommand("ccc").setTabCompleter(new CccCommandTabCompleter());
+
         getLogger().info("CCoinCraft 플러그인 onEnable 완료");
     }
 
@@ -95,6 +98,7 @@ public class CCoinCraft extends JavaPlugin {
         economy = rsp.getProvider();
         return economy != null;
     }
+
     public static Economy getEconomy() {
         return economy;
     }

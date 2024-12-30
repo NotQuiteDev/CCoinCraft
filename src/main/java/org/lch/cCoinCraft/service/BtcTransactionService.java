@@ -5,47 +5,67 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.lch.cCoinCraft.CCoinCraft;
 import org.lch.cCoinCraft.database.BtcHistoryDAO;
+import org.lch.cCoinCraft.database.HistoryDAO;
 import org.lch.cCoinCraft.database.PlayerDAO;
 
 import java.text.DecimalFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * BTC 구매/판매 로직 담당
+ * 여러 코인의 구매/판매 로직 담당 (클래스 이름은 BtcTransactionService로 유지)
  */
 public class BtcTransactionService {
 
     private final PlayerDAO playerDAO;
-    private final BtcHistoryDAO btcHistoryDAO; // 거래 내역 DB or 파일 기록에도 재사용 가능
+    private final BtcHistoryDAO btcHistoryDAO; // BTC 거래 내역
+    private final HistoryDAO historyDAO; // 모든 거래 내역
 
-    // 임시로 정한 BTC 가격 (1 BTC 당 140,000,000 화폐) - 실제로는 변동 환율, Coingecko 연동 등 가능
-    private static final double BTC_PRICE = 140000000.0;
+    // 임시로 설정한 코인별 가격 (실제로는 변동 환율, Coingecko 연동 등 가능)
+    private static final Map<String, Double> COIN_PRICES = new HashMap<>();
 
-    // 소수점 고정 형식: 8자리 소수점까지 표시 (사토시 단위)
-    private static final DecimalFormat BTC_FORMAT = new DecimalFormat("0.00000000");
+    static {
+        COIN_PRICES.put("BTC", 140000000.0);
+        COIN_PRICES.put("ETH", 5000000.0);
+        COIN_PRICES.put("DOGE", 470.0);
+        COIN_PRICES.put("USDT", 1466.0);
+        // 필요한 코인 추가
+    }
 
-    public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO) {
+    // 소수점 고정 형식: 8자리 소수점까지 표시 (사토시 단위 등)
+    private static final DecimalFormat COIN_FORMAT = new DecimalFormat("0.00000000");
+
+    public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, HistoryDAO historyDAO) {
         this.playerDAO = playerDAO;
         this.btcHistoryDAO = btcHistoryDAO;
+        this.historyDAO = historyDAO;
     }
 
     /**
-     * /ccc btc buy <amount>
-     * 화폐 -> BTC 구매
+     * /ccc <coin> buy <amount>
+     * 화폐 -> 코인 구매
      */
-    public void buyBitcoin(Player player, double amount) {
+    public void buyCoin(Player player, String coinType, double amount) {
         if (amount <= 0) {
             player.sendMessage(ChatColor.RED + "[CCC] Invalid amount.");
             return;
         }
+
+        // coinType을 재할당하지 않고 새로운 변수에 대문자로 변환된 값을 저장
+        String upperCoinType = coinType.toUpperCase();
+        Double coinPrice = COIN_PRICES.get(upperCoinType);
+        if (coinPrice == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Unsupported coin type: " + upperCoinType);
+            return;
+        }
+
         Economy economy = CCoinCraft.getEconomy();
         if (economy == null) {
             player.sendMessage(ChatColor.RED + "[CCC] Vault or Economy is not available.");
             return;
         }
 
-        double price = BTC_PRICE * amount; // 총 비용
+        double price = coinPrice * amount; // 총 비용
         double balance = economy.getBalance(player);
 
         if (balance < price) {
@@ -56,122 +76,127 @@ public class BtcTransactionService {
 
         // 결제
         economy.withdrawPlayer(player, price);
-        // DB에 BTC 추가
-        playerDAO.addBtcBalance(player.getUniqueId(), amount);
+        // DB에 코인 추가
+        playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, amount);
 
         // 로그
-        String amountFormatted = BTC_FORMAT.format(amount);
+        String amountFormatted = COIN_FORMAT.format(amount);
         String priceFormatted = formatCurrency(price);
-        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " BTC for " + priceFormatted + " currency!");
+        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + priceFormatted + " currency!");
 
-        // History 테이블 기록
-        btcHistoryDAO.insertHistory(
-                player.getUniqueId().toString(),
+        // History 테이블 기록 (코인 단위)
+        if (upperCoinType.equals("BTC")) {
+            btcHistoryDAO.insertHistory(
+                    player.getUniqueId().toString(),
+                    player.getName(),
+                    amount,
+                    "BUY_BTC"
+            );
+        }
+
+        // 모든 거래 내역 기록 (HistoryDAO)
+        historyDAO.insertTransaction(
+                player.getUniqueId(),
                 player.getName(),
+                upperCoinType,
                 amount,
-                "BUY_BTC" // reason
+                "BUY"
         );
-
-        // 거래 내역 파일 기록
-        logTransactionToFile(player.getName(), "Buy", amount, price);
     }
 
     /**
-     * /ccc btc sell <amount>
-     * BTC -> 화폐 판매
+     * /ccc <coin> sell <amount>
+     * 코인 -> 화폐 판매
      */
-    public void sellBitcoin(Player player, double amount) {
+    public void sellCoin(Player player, String coinType, double amount) {
         if (amount <= 0) {
             player.sendMessage(ChatColor.RED + "[CCC] Invalid amount.");
             return;
         }
+
+        // coinType을 재할당하지 않고 새로운 변수에 대문자로 변환된 값을 저장
+        String upperCoinType = coinType.toUpperCase();
+        Double coinPrice = COIN_PRICES.get(upperCoinType);
+        if (coinPrice == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Unsupported coin type: " + upperCoinType);
+            return;
+        }
+
         Economy economy = CCoinCraft.getEconomy();
         if (economy == null) {
             player.sendMessage(ChatColor.RED + "[CCC] Vault or Economy is not available.");
             return;
         }
 
-        // 플레이어의 BTC 잔고 확인 (DB에서 SELECT)
-        double btcBalance = playerDAO.getBtcBalance(player.getUniqueId());
-        if (btcBalance < amount) {
-            // 비트코인 잔고 부족
-            String required = BTC_FORMAT.format(amount);
-            String available = BTC_FORMAT.format(btcBalance);
-            player.sendMessage(ChatColor.RED + "[CCC] Insufficient Bitcoin! Need " + required + " BTC but have only " + available + " BTC.");
-            return;
-        }
-
-        double income = BTC_PRICE * amount; // 얻을 화폐
-        // DB에서 BTC 차감
-        playerDAO.addBtcBalance(player.getUniqueId(), -amount);
-
-        // 화폐 지급
-        economy.depositPlayer(player, income);
-
-        // 로그
-        String amountFormatted = BTC_FORMAT.format(amount);
-        String incomeFormatted = formatCurrency(income);
-        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully sold " + amountFormatted + " BTC for " + incomeFormatted + " currency!");
-
-        // History 테이블 기록
-        btcHistoryDAO.insertHistory(
-                player.getUniqueId().toString(),
-                player.getName(),
-                -amount, // 음수로 기록
-                "SELL_BTC"
-        );
-
-        // 거래 내역 파일 기록
-        logTransactionToFile(player.getName(), "Sell", amount, income);
-    }
-
-    /**
-     * /ccc btc balance
-     */
-    public void showBalance(Player player) {
-        Economy economy = CCoinCraft.getEconomy();
-        if (economy == null) {
-            player.sendMessage(ChatColor.RED + "[CCC] Vault or Economy is not available.");
-            return;
-        }
-        double currencyBal = economy.getBalance(player);
-        double btcBal = playerDAO.getBtcBalance(player.getUniqueId());
-
-        String currencyFormatted = formatCurrency(currencyBal);
-        String btcFormatted = BTC_FORMAT.format(btcBal);
-
-        player.sendMessage(ChatColor.GOLD + "[CCC] Your Currency: " + currencyFormatted);
-        player.sendMessage(ChatColor.GOLD + "[CCC] Your Bitcoin: " + btcFormatted + " BTC");
-    }
-
-    /**
-     * 거래 내역 파일 (transactions.txt)에 기록
-     */
-    private void logTransactionToFile(String playerName, String action, double amount, double price) {
-        try {
-            // 플러그인 폴더에 transactions.txt 생성 (없으면)
-            java.io.File file = new java.io.File(CCoinCraft.getPlugin(CCoinCraft.class).getDataFolder(), "transactions.txt");
-            if (!file.exists()) {
-                file.createNewFile();
+        // 플레이어의 코인 잔고 확인 (비동기 호출)
+        playerDAO.getCoinBalance(player.getUniqueId(), upperCoinType, (balance) -> {
+            if (balance < amount) {
+                // 코인 잔고 부족
+                String required = COIN_FORMAT.format(amount);
+                String available = COIN_FORMAT.format(balance);
+                player.sendMessage(ChatColor.RED + "[CCC] Insufficient " + upperCoinType + "! Need " + required + " " + upperCoinType + " but have only " + available + " " + upperCoinType + ".");
+                return;
             }
 
-            java.io.FileWriter writer = new java.io.FileWriter(file, true); // append mode
+            double income = coinPrice * amount; // 얻을 화폐
 
-            // 시간 포맷
-            String timeStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            String amountFormatted = BTC_FORMAT.format(amount);
-            String priceFormatted = formatCurrency(price);
-            String logLine = "[" + timeStr + "] Player: " + playerName
-                    + " | Action: " + action
-                    + " | Amount: " + amountFormatted + " BTC"
-                    + " | Price: " + priceFormatted + " currency\n";
+            // DB에서 코인 차감
+            playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, -amount);
 
-            writer.write(logLine);
-            writer.close();
+            // 화폐 지급
+            economy.depositPlayer(player, income);
 
-        } catch (Exception e) {
-            e.printStackTrace();
+            // 로그
+            String amountFormatted = COIN_FORMAT.format(amount);
+            String incomeFormatted = formatCurrency(income);
+            player.sendMessage(ChatColor.GREEN + "[CCC] Successfully sold " + amountFormatted + " " + upperCoinType + " for " + incomeFormatted + " currency!");
+
+            // History 테이블 기록 (코인 단위)
+            if (upperCoinType.equals("BTC")) {
+                btcHistoryDAO.insertHistory(
+                        player.getUniqueId().toString(),
+                        player.getName(),
+                        -amount, // 음수로 기록
+                        "SELL_BTC"
+                );
+            }
+
+            // 모든 거래 내역 기록 (HistoryDAO)
+            historyDAO.insertTransaction(
+                    player.getUniqueId(),
+                    player.getName(),
+                    upperCoinType,
+                    -amount,
+                    "SELL"
+            );
+        });
+    }
+
+    /**
+     * /ccc <coin> balance
+     */
+    public void showBalance(Player player, String coinType) {
+        String upperCoinType = coinType.toUpperCase();
+        Economy economy = CCoinCraft.getEconomy();
+        if (economy == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Vault or Economy is not available.");
+            return;
         }
+
+        playerDAO.getCoinBalance(player.getUniqueId(), upperCoinType, (coinBalance) -> {
+            if (coinBalance < 0) {
+                player.sendMessage(ChatColor.RED + "[CCC] Unsupported coin type: " + upperCoinType);
+                return;
+            }
+
+            double currencyBal = economy.getBalance(player);
+
+            String currencyFormatted = formatCurrency(currencyBal);
+            String coinFormatted = COIN_FORMAT.format(coinBalance);
+
+            player.sendMessage(ChatColor.GOLD + "[CCC] Your Currency: " + currencyFormatted);
+            player.sendMessage(ChatColor.GOLD + "[CCC] Your " + upperCoinType + ": " + coinFormatted + " " + upperCoinType);
+        });
     }
 
     /**

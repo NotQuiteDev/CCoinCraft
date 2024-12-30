@@ -17,7 +17,7 @@ public class OreRewardService {
     private final PlayerDAO playerDAO;
     private final BtcHistoryDAO btcHistoryDAO;
 
-    // 임시 환율 (1 BTC = 30,000,000원 라고 가정)
+    // 임시 환율 (1 BTC = 140,249,283원 라고 가정)
     // 나중에 Coingecko API 클래스를 만들어, 거기서 받아오면 됨.
     private static final double BTC_TO_KRW_RATE = 140249283.0;
 
@@ -26,7 +26,7 @@ public class OreRewardService {
     private static final DecimalFormat BTC_FORMAT = new DecimalFormat("0.########");
     private static final DecimalFormat KRW_FORMAT = new DecimalFormat("###,###");
 
-    public OreRewardService(CCoinCraft plugin, PlayerDAO playerDAO,BtcHistoryDAO btcHistoryDAO) {
+    public OreRewardService(CCoinCraft plugin, PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO) {
         this.plugin = plugin;
         this.playerDAO = playerDAO;
         this.btcHistoryDAO = btcHistoryDAO;
@@ -61,12 +61,12 @@ public class OreRewardService {
         if (Math.random() < probability) {
             // DB 보상 지급
             UUID uuid = player.getUniqueId();
-            playerDAO.addBtcBalance(uuid, amountBtc);
+
+            // 잔고 추가: updateCoinBalance 메서드 사용
+            playerDAO.updateCoinBalance(uuid, "BTC", amountBtc);
 
             // 5) 메시지 구성
-            // blockName: "DIAMOND_ORE" → 필요한 경우 한글로 바꾸거나 그대로 사용
-            String oreDisplayName = blockName;
-            // 소수점 표기 (e.g. 0.00014 등)
+            String oreDisplayName = blockName; // 필요한 경우 한글로 바꾸거나 그대로 사용
             String btcFormatted = BTC_FORMAT.format(amountBtc);
 
             // 임시 환산 (향후 CoingeckoAPI → 메소드 대체)
@@ -86,7 +86,6 @@ public class OreRewardService {
                     amountBtc,
                     blockType.name()  // 여기서 reason을 "DIAMOND_ORE" 등으로
             );
-
 
             player.sendMessage(message);
         }

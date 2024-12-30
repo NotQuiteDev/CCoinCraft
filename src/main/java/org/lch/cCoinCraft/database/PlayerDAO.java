@@ -59,32 +59,21 @@ public class PlayerDAO {
         }));
     }
 
-    // 예시로 광물 채굴 보상 (btc_balance 추가) 같은 메소드
-    public void addBtcBalance(UUID uuid, double addAmount) {
-        queryQueue.addTask(new QueryTask(databaseManager, (conn) -> {
-            try {
-                String updateSql = "UPDATE players SET btc_balance = btc_balance + ? WHERE uuid = ?";
-                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
-                    ps.setDouble(1, addAmount);
-                    ps.setString(2, uuid.toString());
-                    ps.executeUpdate();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }));
-    }
-
+    /**
+     * 특정 코인의 잔고를 업데이트 (추가 또는 차감)
+     *
+     * @param uuid       플레이어 UUID
+     * @param coinType   코인 종류 (e.g., "BTC", "ETH")
+     * @param amountDelta 추가/차감할 양 (양수: 추가, 음수: 차감)
+     */
     public void updateCoinBalance(UUID uuid, String coinType, double amountDelta) {
         queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
             try {
                 // coinType에 따라 컬럼명 결정
-                // ex) "BTC" -> "btc_balance"
-                //     "ETH" -> "eth_balance"
-                //     "DOGE" -> "doge_balance"
                 String columnName = getColumnName(coinType);
                 if (columnName == null) {
                     // 지원하지 않는 코인
+                    getLogger().warning("Unsupported coin type: " + coinType);
                     return;
                 }
 
@@ -100,16 +89,13 @@ public class PlayerDAO {
         }));
     }
 
-    private String getColumnName(String coinType) {
-        switch (coinType.toUpperCase()) {
-            case "BTC": return "btc_balance";
-            case "ETH": return "eth_balance";
-            case "DOGE": return "doge_balance";
-            case "USDT": return "usdt_balance";
-            // 필요하면 추가
-            default: return null; // 지원 안 함
-        }
-    }
+    /**
+     * 특정 코인의 잔고를 조회
+     *
+     * @param uuid     플레이어 UUID
+     * @param coinType 코인 종류 (e.g., "BTC", "ETH")
+     * @param callback 잔고를 전달할 콜백 함수
+     */
     public void getCoinBalance(UUID uuid, String coinType, Consumer<Double> callback) {
         queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
             double balance = 0.0;
@@ -135,22 +121,20 @@ public class PlayerDAO {
             callback.accept(balance);
         }));
     }
-    public double getBtcBalance(UUID uuid) {
-        double balance = 0.0;
-        try (Connection conn = databaseManager.getConnection()) {
-            String sql = "SELECT btc_balance FROM players WHERE uuid = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, uuid.toString());
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        balance = rs.getDouble("btc_balance");
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return balance;
-    }
 
+    private String getColumnName(String coinType) {
+        switch (coinType.toUpperCase()) {
+            case "BTC":
+                return "btc_balance";
+            case "ETH":
+                return "eth_balance";
+            case "DOGE":
+                return "doge_balance";
+            case "USDT":
+                return "usdt_balance";
+            // 필요하면 추가
+            default:
+                return null; // 지원 안 함
+        }
+    }
 }

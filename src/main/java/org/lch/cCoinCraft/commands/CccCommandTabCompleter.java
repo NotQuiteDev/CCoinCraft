@@ -10,22 +10,32 @@ import java.util.List;
 
 public class CccCommandTabCompleter implements TabCompleter {
 
+    private static final List<String> COINS = Arrays.asList("BTC", "ETH", "DOGE", "USDT");
+    private static final List<String> ACTIONS = Arrays.asList("buy", "sell", "balance");
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        List<String> completions = new ArrayList<>();
+
         if (args.length == 1) {
-            // 첫 번째 인자: "btc", "eth", "doge", "usdt"
-            return Arrays.asList("btc", "eth", "doge", "usdt");
-        } else if (args.length == 2 && Arrays.asList("btc", "eth", "doge", "usdt").contains(args[0].toLowerCase())) {
-            // 두 번째 인자: "buy", "sell", "balance"
-            return Arrays.asList("buy", "sell", "balance");
-        } else if (args.length == 3 && args[1].equalsIgnoreCase("buy")) {
-            // 세 번째 인자: 구매 수량 (빈 리스트 반환)
-            return new ArrayList<>();
-        } else if (args.length == 3 && args[1].equalsIgnoreCase("sell")) {
-            // 세 번째 인자: 판매 수량
-            return new ArrayList<>();
+            // 첫 번째 인자는 코인 타입
+            for (String coin : COINS) {
+                if (coin.toLowerCase().startsWith(args[0].toLowerCase())) {
+                    completions.add(coin);
+                }
+            }
+        } else if (args.length == 2) {
+            // 두 번째 인자는 액션
+            for (String action : ACTIONS) {
+                if (action.startsWith(args[1].toLowerCase())) {
+                    completions.add(action);
+                }
+            }
+        } else if (args.length == 3 && (args[1].equalsIgnoreCase("buy") || args[1].equalsIgnoreCase("sell"))) {
+            // 세 번째 인자는 수량 (숫자만 제안)
+            completions.add("<amount>");
         }
 
-        return new ArrayList<>(); // 기본값: 빈 리스트
+        return completions;
     }
 }
