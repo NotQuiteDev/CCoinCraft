@@ -9,6 +9,7 @@ import org.lch.cCoinCraft.database.HistoryDAO;
 import org.lch.cCoinCraft.database.PlayerDAO;
 
 import java.text.DecimalFormat;
+import java.util.Map;
 
 /**
  * 여러 코인의 구매/판매 로직 담당 (클래스 이름은 BtcTransactionService로 유지)
@@ -54,23 +55,23 @@ public class BtcTransactionService {
             return;
         }
 
-        double price = coinPrice * amount; // 총 비용
+        double totalCost = coinPrice * amount; // 총 비용
         double balance = economy.getBalance(player);
 
-        if (balance < price) {
+        if (balance < totalCost) {
             // 잔고 부족
-            player.sendMessage(ChatColor.RED + "[CCC] Insufficient currency! Need " + formatCurrency(price) + " but you only have " + formatCurrency(balance));
+            player.sendMessage(ChatColor.RED + "[CCC] Insufficient currency! Need " + formatCurrency(totalCost) + " but you only have " + formatCurrency(balance));
             return;
         }
 
         // 결제
-        economy.withdrawPlayer(player, price);
+        economy.withdrawPlayer(player, totalCost);
         // DB에 코인 추가
         playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, amount);
 
         // 로그
         String amountFormatted = COIN_FORMAT.format(amount);
-        String priceFormatted = formatCurrency(price);
+        String priceFormatted = formatCurrency(totalCost);
         player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + priceFormatted + " currency!");
 
         // History 테이블 기록 (코인 단위)
@@ -118,11 +119,11 @@ public class BtcTransactionService {
         }
 
         // 플레이어의 코인 잔고 확인 (비동기 호출)
-        playerDAO.getCoinBalance(player.getUniqueId(), upperCoinType, (balance) -> {
-            if (balance < amount) {
+        playerDAO.getCoinBalance(player.getUniqueId(), upperCoinType, (coinBalance) -> {
+            if (coinBalance < amount) {
                 // 코인 잔고 부족
                 String required = COIN_FORMAT.format(amount);
-                String available = COIN_FORMAT.format(balance);
+                String available = COIN_FORMAT.format(coinBalance);
                 player.sendMessage(ChatColor.RED + "[CCC] Insufficient " + upperCoinType + "! Need " + required + " " + upperCoinType + " but have only " + available + " " + upperCoinType + ".");
                 return;
             }
@@ -163,6 +164,7 @@ public class BtcTransactionService {
 
     /**
      * /ccc <coin> balance
+     * 특정 코인의 잔액과 화폐 잔액을 표시
      */
     public void showBalance(Player player, String coinType) {
         String upperCoinType = coinType.toUpperCase();
@@ -185,6 +187,40 @@ public class BtcTransactionService {
 
             player.sendMessage(ChatColor.GOLD + "[CCC] Your Currency: " + currencyFormatted);
             player.sendMessage(ChatColor.GOLD + "[CCC] Your " + upperCoinType + ": " + coinFormatted + " " + upperCoinType);
+        });
+    }
+
+    /**
+     * /ccc wallet
+     * 모든 코인 잔액과 화폐 잔액을 표시
+     */
+    public void showWallet(Player player) {
+        Economy economy = CCoinCraft.getEconomy();
+        if (economy == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Vault or Economy is not available.");
+            return;
+        }
+
+        double currencyBal = economy.getBalance(player);
+        String currencyFormatted = formatCurrency(currencyBal);
+
+        playerDAO.getAllCoinBalances(player.getUniqueId(), (coinBalances) -> {
+            StringBuilder walletMessage = new StringBuilder();
+            walletMessage.append(ChatColor.GOLD).append("[CCC] Your Wallet:\n");
+            walletMessage.append(ChatColor.GOLD).append("Currency: ").append(currencyFormatted).append("\n");
+
+            if (coinBalances.isEmpty()) {
+                walletMessage.append(ChatColor.YELLOW).append("No coins found.");
+            } else {
+                for (Map.Entry<String, Double> entry : coinBalances.entrySet()) {
+                    String coin = entry.getKey().toUpperCase();
+                    double balance = entry.getValue();
+                    String coinFormatted = COIN_FORMAT.format(balance);
+                    walletMessage.append(ChatColor.YELLOW).append(coin).append(": ").append(coinFormatted).append(" ").append(coin).append("\n");
+                }
+            }
+
+            player.sendMessage(walletMessage.toString());
         });
     }
 

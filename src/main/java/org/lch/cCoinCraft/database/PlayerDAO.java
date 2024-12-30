@@ -6,7 +6,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 import static org.bukkit.Bukkit.getLogger;
 
@@ -14,6 +15,9 @@ public class PlayerDAO {
 
     private final DatabaseManager databaseManager;
     private final QueryQueue queryQueue;
+
+    // 지원하는 코인 목록
+    private static final List<String> SUPPORTED_COINS = Arrays.asList("BTC", "ETH", "DOGE", "USDT");
 
     public PlayerDAO(DatabaseManager databaseManager, QueryQueue queryQueue) {
         this.databaseManager = databaseManager;
@@ -122,6 +126,60 @@ public class PlayerDAO {
         }));
     }
 
+    /**
+     * 특정 플레이어의 모든 코인 잔고를 조회
+     *
+     * @param uuid     플레이어 UUID
+     * @param callback 잔고를 전달할 콜백 함수 (코인 심볼과 잔액의 맵)
+     */
+    public void getAllCoinBalances(UUID uuid, Consumer<Map<String, Double>> callback) {
+        queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
+            Map<String, Double> coinBalances = new HashMap<>();
+
+            try {
+                // 지원하는 모든 코인의 잔액을 한 번에 조회
+                StringBuilder sqlBuilder = new StringBuilder("SELECT ");
+                for (int i = 0; i < SUPPORTED_COINS.size(); i++) {
+                    String columnName = getColumnName(SUPPORTED_COINS.get(i));
+                    if (columnName != null) {
+                        sqlBuilder.append(columnName);
+                        if (i < SUPPORTED_COINS.size() - 1) {
+                            sqlBuilder.append(", ");
+                        }
+                    }
+                }
+                sqlBuilder.append(" FROM players WHERE uuid = ?");
+
+                String sql = sqlBuilder.toString();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, uuid.toString());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            for (String coin : SUPPORTED_COINS) {
+                                String columnName = getColumnName(coin);
+                                if (columnName != null) {
+                                    double balance = rs.getDouble(columnName);
+                                    coinBalances.put(coin.toUpperCase(), balance);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            // 호출자에게 결과 전달
+            callback.accept(coinBalances);
+        }));
+    }
+
+    /**
+     * 코인 타입에 따라 데이터베이스 컬럼명을 반환
+     *
+     * @param coinType 코인 종류 (e.g., "BTC", "ETH")
+     * @return 데이터베이스 컬럼명, 지원하지 않으면 null
+     */
     private String getColumnName(String coinType) {
         switch (coinType.toUpperCase()) {
             case "BTC":

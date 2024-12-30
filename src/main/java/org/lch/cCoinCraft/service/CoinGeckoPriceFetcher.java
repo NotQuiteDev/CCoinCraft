@@ -83,7 +83,7 @@ public class CoinGeckoPriceFetcher {
                     String symbol = mapCoinIdToSymbol(coinId);
                     if (symbol != null) {
                         coinPrices.put(symbol, price);
-                        plugin.getLogger().info("Updated " + symbol + " price to " + price + " KRW");
+                        //plugin.getLogger().info("Updated " + symbol + " price to " + price + " KRW");
                     }
                 }
             }
