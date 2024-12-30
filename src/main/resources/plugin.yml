@@ -7,11 +7,12 @@ depend: [Vault] # Vault를 종속성으로 추가
 commands:
   ccc:
     description: Main command for the CCoinCraft plugin
-    usage: |
+    usage: >
       /ccc buy <coin> <amount>
       /ccc sell <coin> <amount>
       /ccc balance <coin>
       /ccc wallet
+      /ccc price
     aliases: [ccoincraft]
     # permission: ccc.use  # 권한 설정 제거
     permission-message: "You don't have permission to use this command."

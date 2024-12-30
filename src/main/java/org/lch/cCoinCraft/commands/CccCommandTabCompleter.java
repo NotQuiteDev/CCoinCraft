@@ -11,7 +11,7 @@ import java.util.List;
 public class CccCommandTabCompleter implements TabCompleter {
 
     private static final List<String> COINS = Arrays.asList("BTC", "ETH", "DOGE", "USDT");
-    private static final List<String> ACTIONS = Arrays.asList("buy", "sell", "balance", "bal", "wallet");
+    private static final List<String> ACTIONS = Arrays.asList("buy", "sell", "balance", "bal", "wallet", "price");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {

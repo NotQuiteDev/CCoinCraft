@@ -6,6 +6,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.lch.cCoinCraft.service.BtcTransactionService;
+import org.lch.cCoinCraft.service.CoinGeckoPriceFetcher;
 import org.lch.cCoinCraft.database.PlayerDAO;
 
 import java.util.Arrays;
@@ -15,13 +16,15 @@ public class CccCommand implements CommandExecutor {
 
     private final PlayerDAO playerDAO;
     private final BtcTransactionService transactionService;
+    private final CoinGeckoPriceFetcher priceFetcher;
 
     // 코인 리스트를 클래스 내에서 관리
     private static final List<String> COINS = Arrays.asList("BTC", "ETH", "DOGE", "USDT");
 
-    public CccCommand(PlayerDAO playerDAO, BtcTransactionService transactionService) {
+    public CccCommand(PlayerDAO playerDAO, BtcTransactionService transactionService, CoinGeckoPriceFetcher priceFetcher) {
         this.playerDAO = playerDAO;
         this.transactionService = transactionService;
+        this.priceFetcher = priceFetcher;
     }
 
     @Override
@@ -34,7 +37,7 @@ public class CccCommand implements CommandExecutor {
         Player player = (Player) sender;
 
         if (args.length == 0) {
-            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc [buy/sell/balance/wallet] <coin> <amount>");
+            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc [buy/sell/balance/wallet/price] <coin> <amount>");
             return true;
         }
 
@@ -86,6 +89,10 @@ public class CccCommand implements CommandExecutor {
                 showWallet(player);
                 break;
 
+            case "price":
+                showPrices(player);
+                break;
+
             default:
                 player.sendMessage(ChatColor.RED + "[CCC] Invalid action: " + action);
                 break;
@@ -127,6 +134,28 @@ public class CccCommand implements CommandExecutor {
     }
 
     /**
+     * 모든 코인의 현재 가격을 표시하는 메서드 (price 명령어용)
+     *
+     * @param player 플레이어
+     */
+    private void showPrices(Player player) {
+        // 모든 코인의 심볼을 사용하여 가격을 가져옵니다.
+        StringBuilder priceMessage = new StringBuilder();
+        priceMessage.append(ChatColor.GOLD).append("[CCC] Current Prices:\n");
+
+        for (String coin : COINS) {
+            Double price = priceFetcher.getPrice(coin);
+            if (price != null) {
+                priceMessage.append(ChatColor.YELLOW).append(coin).append(": ").append(formatCurrency(price)).append(" KRW\n");
+            } else {
+                priceMessage.append(ChatColor.RED).append(coin).append(": ").append("Price not available\n");
+            }
+        }
+
+        player.sendMessage(priceMessage.toString());
+    }
+
+    /**
      * 안전하게 문자열을 double로 변환
      */
     private double parseDoubleSafe(String str) {
@@ -135,5 +164,12 @@ public class CccCommand implements CommandExecutor {
         } catch (NumberFormatException e) {
             return -1.0;
         }
+    }
+
+    /**
+     * 화폐 금액 포맷 (천 단위 콤마 추가)
+     */
+    private String formatCurrency(double amount) {
+        return String.format("%,.0f", amount);
     }
 }

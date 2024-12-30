@@ -1,5 +1,6 @@
 package org.lch.cCoinCraft;
 
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.lch.cCoinCraft.commands.CccCommand;
@@ -14,7 +15,6 @@ import org.lch.cCoinCraft.listeners.PlayerJoinListener;
 import org.lch.cCoinCraft.service.BtcTransactionService;
 import org.lch.cCoinCraft.service.CoinGeckoPriceFetcher;
 import org.lch.cCoinCraft.service.OreRewardService;
-import net.milkbowl.vault.economy.Economy;
 
 import java.io.File;
 
@@ -85,7 +85,7 @@ public class CCoinCraft extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockBreakListener(oreRewardService), this);
 
         // 커맨드 등록
-        getCommand("ccc").setExecutor(new CccCommand(playerDAO, transactionService));
+        getCommand("ccc").setExecutor(new CccCommand(playerDAO, transactionService, priceFetcher)); // 수정된 부분
 
         // TabCompleter 등록
         this.getCommand("ccc").setTabCompleter(new CccCommandTabCompleter());
