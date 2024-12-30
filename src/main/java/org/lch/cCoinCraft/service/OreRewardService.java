@@ -1,5 +1,6 @@
 package org.lch.cCoinCraft.service;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -16,20 +17,17 @@ public class OreRewardService {
     private final CCoinCraft plugin;
     private final PlayerDAO playerDAO;
     private final BtcHistoryDAO btcHistoryDAO;
-
-    // 임시 환율 (1 BTC = 140,249,283원 라고 가정)
-    // 나중에 Coingecko API 클래스를 만들어, 거기서 받아오면 됨.
-    private static final double BTC_TO_KRW_RATE = 140249283.0;
+    private final CoinGeckoPriceFetcher priceFetcher;
 
     // 숫자를 소수점 표기로 깔끔하게 표시하기 위한 포맷
-    // 원하는 자리수에 맞춰 포맷 변경 가능
     private static final DecimalFormat BTC_FORMAT = new DecimalFormat("0.########");
     private static final DecimalFormat KRW_FORMAT = new DecimalFormat("###,###");
 
-    public OreRewardService(CCoinCraft plugin, PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO) {
+    public OreRewardService(CCoinCraft plugin, PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, CoinGeckoPriceFetcher priceFetcher) {
         this.plugin = plugin;
         this.playerDAO = playerDAO;
         this.btcHistoryDAO = btcHistoryDAO;
+        this.priceFetcher = priceFetcher;
     }
 
     /**
@@ -69,8 +67,13 @@ public class OreRewardService {
             String oreDisplayName = blockName; // 필요한 경우 한글로 바꾸거나 그대로 사용
             String btcFormatted = BTC_FORMAT.format(amountBtc);
 
-            // 임시 환산 (향후 CoingeckoAPI → 메소드 대체)
-            double krwValue = amountBtc * BTC_TO_KRW_RATE;
+            // 실시간 환율을 사용하여 KRW 가치 계산
+            Double btcPriceKRW = priceFetcher.getPrice("BTC"); // BTC의 KRW 가격
+            if (btcPriceKRW == null) {
+                player.sendMessage(ChatColor.RED + "[CCC] 현재 BTC 환율을 가져올 수 없습니다.");
+                return;
+            }
+            double krwValue = amountBtc * btcPriceKRW;
             String krwFormatted = KRW_FORMAT.format(krwValue);
 
             // 최종 메시지

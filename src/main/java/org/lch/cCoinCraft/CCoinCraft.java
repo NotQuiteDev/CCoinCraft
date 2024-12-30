@@ -12,6 +12,7 @@ import org.lch.cCoinCraft.database.QueryQueue;
 import org.lch.cCoinCraft.listeners.BlockBreakListener;
 import org.lch.cCoinCraft.listeners.PlayerJoinListener;
 import org.lch.cCoinCraft.service.BtcTransactionService;
+import org.lch.cCoinCraft.service.CoinGeckoPriceFetcher;
 import org.lch.cCoinCraft.service.OreRewardService;
 import net.milkbowl.vault.economy.Economy;
 
@@ -25,6 +26,7 @@ public class CCoinCraft extends JavaPlugin {
     private OreRewardService oreRewardService;
     private BtcHistoryDAO btcHistoryDAO;
     private HistoryDAO historyDAO;
+    private CoinGeckoPriceFetcher priceFetcher; // CoinGeckoPriceFetcher 필드 추가
     private static Economy economy = null;
 
     @Override
@@ -34,7 +36,7 @@ public class CCoinCraft extends JavaPlugin {
         if (!setupEconomy()) {
             getLogger().severe("Vault 연동에 실패했습니다. Vault 플러그인 및 Economy 플러그인을 확인하세요.");
             // 서버를 중단시키거나, 기능 제한 가능
-            // getServer().getPluginManager().disablePlugin(this);
+            getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
@@ -53,7 +55,7 @@ public class CCoinCraft extends JavaPlugin {
         // DB 파일 지정
         File dbFile = new File(getDataFolder(), "database.db");
 
-        // DatabaseManager 생성 (B 방식)
+        // DatabaseManager 생성
         databaseManager = new DatabaseManager(dbFile);
 
         // 테이블 생성 (initDatabase)
@@ -67,11 +69,15 @@ public class CCoinCraft extends JavaPlugin {
         historyDAO = new HistoryDAO(databaseManager, queryQueue);
         playerDAO = new PlayerDAO(databaseManager, queryQueue);
 
-        // OreRewardService 생성 시, btcHistoryDAO도 주입
-        oreRewardService = new OreRewardService(this, playerDAO, btcHistoryDAO);
+        // CoinGeckoPriceFetcher 생성 및 시작
+        priceFetcher = new CoinGeckoPriceFetcher(this);
+        priceFetcher.startPriceUpdates();
+
+        // OreRewardService 생성 시, priceFetcher도 주입
+        oreRewardService = new OreRewardService(this, playerDAO, btcHistoryDAO, priceFetcher);
 
         // BtcTransactionService 생성 시, historyDAO도 주입
-        BtcTransactionService transactionService = new BtcTransactionService(playerDAO, btcHistoryDAO, historyDAO);
+        BtcTransactionService transactionService = new BtcTransactionService(playerDAO, btcHistoryDAO, historyDAO, priceFetcher);
 
         // 리스너 등록
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);

@@ -9,8 +9,6 @@ import org.lch.cCoinCraft.database.HistoryDAO;
 import org.lch.cCoinCraft.database.PlayerDAO;
 
 import java.text.DecimalFormat;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 여러 코인의 구매/판매 로직 담당 (클래스 이름은 BtcTransactionService로 유지)
@@ -20,25 +18,16 @@ public class BtcTransactionService {
     private final PlayerDAO playerDAO;
     private final BtcHistoryDAO btcHistoryDAO; // BTC 거래 내역
     private final HistoryDAO historyDAO; // 모든 거래 내역
-
-    // 임시로 설정한 코인별 가격 (실제로는 변동 환율, Coingecko 연동 등 가능)
-    private static final Map<String, Double> COIN_PRICES = new HashMap<>();
-
-    static {
-        COIN_PRICES.put("BTC", 140000000.0);
-        COIN_PRICES.put("ETH", 5000000.0);
-        COIN_PRICES.put("DOGE", 470.0);
-        COIN_PRICES.put("USDT", 1466.0);
-        // 필요한 코인 추가
-    }
+    private final CoinGeckoPriceFetcher priceFetcher;
 
     // 소수점 고정 형식: 8자리 소수점까지 표시 (사토시 단위 등)
     private static final DecimalFormat COIN_FORMAT = new DecimalFormat("0.00000000");
 
-    public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, HistoryDAO historyDAO) {
+    public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, HistoryDAO historyDAO, CoinGeckoPriceFetcher priceFetcher) {
         this.playerDAO = playerDAO;
         this.btcHistoryDAO = btcHistoryDAO;
         this.historyDAO = historyDAO;
+        this.priceFetcher = priceFetcher;
     }
 
     /**
@@ -51,9 +40,9 @@ public class BtcTransactionService {
             return;
         }
 
-        // coinType을 재할당하지 않고 새로운 변수에 대문자로 변환된 값을 저장
+        // 대문자로 변환
         String upperCoinType = coinType.toUpperCase();
-        Double coinPrice = COIN_PRICES.get(upperCoinType);
+        Double coinPrice = priceFetcher.getPrice(upperCoinType);
         if (coinPrice == null) {
             player.sendMessage(ChatColor.RED + "[CCC] Unsupported coin type: " + upperCoinType);
             return;
@@ -114,9 +103,9 @@ public class BtcTransactionService {
             return;
         }
 
-        // coinType을 재할당하지 않고 새로운 변수에 대문자로 변환된 값을 저장
+        // 대문자로 변환
         String upperCoinType = coinType.toUpperCase();
-        Double coinPrice = COIN_PRICES.get(upperCoinType);
+        Double coinPrice = priceFetcher.getPrice(upperCoinType);
         if (coinPrice == null) {
             player.sendMessage(ChatColor.RED + "[CCC] Unsupported coin type: " + upperCoinType);
             return;
