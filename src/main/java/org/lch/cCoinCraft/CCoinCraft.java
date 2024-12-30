@@ -3,6 +3,7 @@ package org.lch.cCoinCraft;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.lch.cCoinCraft.commands.CccCommand;
+import org.lch.cCoinCraft.commands.CccCommandTabCompleter;
 import org.lch.cCoinCraft.database.BtcHistoryDAO;
 import org.lch.cCoinCraft.database.DatabaseManager;
 import org.lch.cCoinCraft.database.PlayerDAO;
@@ -78,7 +79,8 @@ public class CCoinCraft extends JavaPlugin {
 
         // 커맨드 등록
         getCommand("ccc").setExecutor(new CccCommand(playerDAO, transactionService));
-
+        // TabCompleter 등록
+        this.getCommand("ccc").setTabCompleter(new CccCommandTabCompleter());
         getLogger().info("CCoinCraft 플러그인 onEnable 완료");
     }
 
