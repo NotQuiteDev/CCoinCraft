@@ -23,7 +23,7 @@ public class BtcHistoryDAO {
      */
     public void insertHistory(String uuid, String nickname, double amount, String reason) {
         queryQueue.addTask(new QueryTask(databaseManager, (Connection conn) -> {
-            String sql = "INSERT INTO btc_transaction_history (uuid, nickname, amount, reason) VALUES (?, ?, ?, ?)";
+            String sql = "INSERT INTO btc_history (uuid, nickname, amount, reason) VALUES (?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, uuid);
                 ps.setString(2, nickname);
