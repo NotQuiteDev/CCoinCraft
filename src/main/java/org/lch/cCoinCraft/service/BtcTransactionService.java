@@ -74,15 +74,6 @@ public class BtcTransactionService {
         String priceFormatted = formatCurrency(totalCost);
         player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + priceFormatted + " currency!");
 
-        // History 테이블 기록 (코인 단위)
-        if (upperCoinType.equals("BTC")) {
-            btcHistoryDAO.insertHistory(
-                    player.getUniqueId().toString(),
-                    player.getName(),
-                    amount,
-                    "BUY_BTC"
-            );
-        }
 
         // 모든 거래 내역 기록 (HistoryDAO)
         historyDAO.insertTransaction(
@@ -141,15 +132,6 @@ public class BtcTransactionService {
             String incomeFormatted = formatCurrency(income);
             player.sendMessage(ChatColor.GREEN + "[CCC] Successfully sold " + amountFormatted + " " + upperCoinType + " for " + incomeFormatted + " currency!");
 
-            // History 테이블 기록 (코인 단위)
-            if (upperCoinType.equals("BTC")) {
-                btcHistoryDAO.insertHistory(
-                        player.getUniqueId().toString(),
-                        player.getName(),
-                        -amount, // 음수로 기록
-                        "SELL_BTC"
-                );
-            }
 
             // 모든 거래 내역 기록 (HistoryDAO)
             historyDAO.insertTransaction(
