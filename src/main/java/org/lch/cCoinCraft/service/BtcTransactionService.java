@@ -26,6 +26,9 @@ public class BtcTransactionService {
     // 소수점 고정 형식: 최대 8자리 소수점까지 표시 (불필요한 0은 제거)
     private static final DecimalFormat COIN_FORMAT = new DecimalFormat("0.########");
 
+    // 화폐 단위를 상수로 정의 (미래 확장을 위해)
+    private static final String CURRENCY_UNIT = ""; // 현재는 빈 문자열, 필요 시 변경 가능
+
     public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, HistoryDAO historyDAO, CoinGeckoPriceFetcher priceFetcher, JavaPlugin plugin) {
         this.playerDAO = playerDAO;
         this.btcHistoryDAO = btcHistoryDAO;
@@ -187,7 +190,7 @@ public class BtcTransactionService {
 
     /**
      * /ccc wallet
-     * 모든 코인 잔액과 화폐 잔액을 표시
+     * 모든 코인 잔액과 화폐 잔액을 표시, 각 코인의 현재 가치와 총 재산도 표시
      */
     public void showWallet(Player player) {
         Economy economy = CCoinCraft.getEconomy();
@@ -198,24 +201,43 @@ public class BtcTransactionService {
 
         double currencyBal = economy.getBalance(player);
         String currencyFormatted = formatCurrency(currencyBal);
-        String feePercentage = String.format("%.2f%%", fee * 100);
 
         playerDAO.getAllCoinBalances(player.getUniqueId(), (coinBalances) -> {
             StringBuilder walletMessage = new StringBuilder();
             walletMessage.append(ChatColor.GOLD).append("[CCC] Your Wallet:\n");
             walletMessage.append(ChatColor.GOLD).append("Currency: ").append(currencyFormatted).append("\n");
-            walletMessage.append(ChatColor.YELLOW).append("Transaction Fee: ").append(feePercentage).append("\n");
+
+            double totalAsset = currencyBal; // 총 재산 초기화 (화폐 잔액 포함)
 
             if (coinBalances.isEmpty()) {
-                walletMessage.append(ChatColor.YELLOW).append("No coins found.");
+                walletMessage.append(ChatColor.YELLOW).append("No coins found.\n");
             } else {
                 for (Map.Entry<String, Double> entry : coinBalances.entrySet()) {
                     String coin = entry.getKey().toUpperCase();
                     double balance = entry.getValue();
                     String coinFormatted = COIN_FORMAT.format(balance);
-                    walletMessage.append(ChatColor.YELLOW).append(coin).append(": ").append(coinFormatted).append(" ").append(coin).append("\n");
+
+                    // 캐시된 가격 가져오기
+                    Double coinPrice = priceFetcher.getPrice(coin);
+                    if (coinPrice == null) {
+                        walletMessage.append(ChatColor.RED).append(coin).append(": ").append(coinFormatted)
+                                .append(" ").append(coin).append(" (Price unavailable)\n");
+                        continue;
+                    }
+
+                    // 코인의 현재 가치를 계산
+                    double coinValue = balance * coinPrice;
+                    String coinValueFormatted = formatCurrency(coinValue);
+                    totalAsset += coinValue;
+
+                    walletMessage.append(ChatColor.YELLOW).append(coin).append(": ").append(coinFormatted)
+                            .append(" ").append(coin).append(" (").append(coinValueFormatted).append(")\n");
                 }
             }
+
+            // 총 재산 표시
+            String totalAssetFormatted = formatCurrency(totalAsset);
+            walletMessage.append(ChatColor.GREEN).append("Total Assets: ").append(totalAssetFormatted);
 
             player.sendMessage(walletMessage.toString());
         });
