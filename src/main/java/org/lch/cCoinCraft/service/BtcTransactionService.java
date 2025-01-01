@@ -4,7 +4,6 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.lch.cCoinCraft.CCoinCraft;
-import org.lch.cCoinCraft.database.BtcHistoryDAO;
 import org.lch.cCoinCraft.database.HistoryDAO;
 import org.lch.cCoinCraft.database.PlayerDAO;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -18,8 +17,7 @@ import java.util.Map;
 public class BtcTransactionService {
 
     private final PlayerDAO playerDAO;
-    private final BtcHistoryDAO btcHistoryDAO; // BTC 거래 내역
-    private final HistoryDAO historyDAO; // 모든 거래 내역
+    private final HistoryDAO historyDAO;
     private final CoinGeckoPriceFetcher priceFetcher;
     private final double fee; // 수수료 필드
 
@@ -29,9 +27,8 @@ public class BtcTransactionService {
     // 화폐 단위를 상수로 정의 (미래 확장을 위해)
     private static final String CURRENCY_UNIT = ""; // 현재는 빈 문자열, 필요 시 변경 가능
 
-    public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, HistoryDAO historyDAO, CoinGeckoPriceFetcher priceFetcher, JavaPlugin plugin) {
+    public BtcTransactionService(PlayerDAO playerDAO, HistoryDAO historyDAO, CoinGeckoPriceFetcher priceFetcher, JavaPlugin plugin) {
         this.playerDAO = playerDAO;
-        this.btcHistoryDAO = btcHistoryDAO;
         this.historyDAO = historyDAO;
         this.priceFetcher = priceFetcher;
         double configFee = plugin.getConfig().getDouble("transaction_fee", 0.0);
@@ -44,7 +41,7 @@ public class BtcTransactionService {
     }
 
     /**
-     * /ccc <coin> buy <amount>
+     * /ccc buy <coin> <amount>
      * 화폐 -> 코인 구매
      */
     public void buyCoin(Player player, String coinType, double amount) {
@@ -79,17 +76,8 @@ public class BtcTransactionService {
 
         // 결제
         economy.withdrawPlayer(player, totalCost);
-        // DB에 코인 추가
+        // DB에 코인 추가 및 거래 내역 기록
         playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, amount);
-
-        // 로그
-        String amountFormatted = COIN_FORMAT.format(amount);
-        String totalCostFormatted = formatCurrency(totalCost);
-        String feeFormatted = formatCurrency(feeAmount);
-        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + totalCostFormatted + " currency!");
-        player.sendMessage(ChatColor.YELLOW + "[CCC] A fee of " + feeFormatted + " currency has been applied.");
-
-        // 모든 거래 내역 기록 (수수료는 기록하지 않음)
         historyDAO.insertTransaction(
                 player.getUniqueId(),
                 player.getName(),
@@ -97,10 +85,73 @@ public class BtcTransactionService {
                 amount,
                 "BUY"
         );
+
+        // 로그
+        String amountFormatted = COIN_FORMAT.format(amount);
+        String totalCostFormatted = formatCurrency(totalCost);
+        String feeFormatted = formatCurrency(feeAmount);
+        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + totalCostFormatted + " currency!");
+        player.sendMessage(ChatColor.YELLOW + "[CCC] A fee of " + feeFormatted + " currency has been applied.");
     }
 
     /**
-     * /ccc <coin> sell <amount>
+     * /ccc buy <coin> all
+     * 사용자의 화폐 잔액을 모두 사용하여 최대한의 코인 구매
+     */
+    public void buyAllCoin(Player player, String coinType) {
+        String upperCoinType = coinType.toUpperCase();
+        Double coinPrice = priceFetcher.getPrice(upperCoinType);
+        if (coinPrice == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Unsupported coin type: " + upperCoinType);
+            return;
+        }
+
+        Economy economy = CCoinCraft.getEconomy();
+        if (economy == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Vault or Economy is not available.");
+            return;
+        }
+
+        double currencyBal = economy.getBalance(player);
+        double feePercentage = fee;
+
+        // 수수료를 고려한 최대 구매 가능한 금액 계산
+        double maxGrossCost = currencyBal / (1 + feePercentage);
+        double maxAmount = maxGrossCost / coinPrice;
+
+        if (maxAmount <= 0) {
+            player.sendMessage(ChatColor.RED + "[CCC] Insufficient currency to buy any " + upperCoinType + ".");
+            return;
+        }
+
+        // 실제 구매 금액 계산 (소수점 8자리로 제한)
+        maxAmount = Math.floor(maxAmount * 1e8) / 1e8;
+
+        double feeAmount = maxGrossCost * feePercentage;
+        double totalCost = maxGrossCost + feeAmount;
+
+        // 결제
+        economy.withdrawPlayer(player, totalCost);
+        // DB에 코인 추가 및 거래 내역 기록
+        playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, maxAmount);
+        historyDAO.insertTransaction(
+                player.getUniqueId(),
+                player.getName(),
+                upperCoinType,
+                maxAmount,
+                "BUY_ALL"
+        );
+
+        // 로그
+        String amountFormatted = COIN_FORMAT.format(maxAmount);
+        String totalCostFormatted = formatCurrency(totalCost);
+        String feeFormatted = formatCurrency(feeAmount);
+        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + totalCostFormatted + " currency!");
+        player.sendMessage(ChatColor.YELLOW + "[CCC] A fee of " + feeFormatted + " currency has been applied.");
+    }
+
+    /**
+     * /ccc sell <coin> <amount>
      * 코인 -> 화폐 판매
      */
     public void sellCoin(Player player, String coinType, double amount) {
@@ -134,8 +185,15 @@ public class BtcTransactionService {
             double feeAmount = grossIncome * fee;    // 수수료 금액
             double netIncome = grossIncome - feeAmount; // 수수료 차감 후 금액
 
-            // DB에서 코인 차감
+            // DB에서 코인 차감 및 거래 내역 기록
             playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, -amount);
+            historyDAO.insertTransaction(
+                    player.getUniqueId(),
+                    player.getName(),
+                    upperCoinType,
+                    -amount,
+                    "SELL"
+            );
 
             // 화폐 지급
             economy.depositPlayer(player, netIncome);
@@ -146,15 +204,56 @@ public class BtcTransactionService {
             String feeFormatted = formatCurrency(feeAmount);
             player.sendMessage(ChatColor.GREEN + "[CCC] Successfully sold " + amountFormatted + " " + upperCoinType + " for " + netIncomeFormatted + " currency!");
             player.sendMessage(ChatColor.YELLOW + "[CCC] A fee of " + feeFormatted + " currency has been deducted.");
+        });
+    }
 
-            // 모든 거래 내역 기록 (수수료는 기록하지 않음)
+    /**
+     * /ccc sell <coin> all
+     * 사용자가 보유한 모든 코인을 판매
+     */
+    public void sellAllCoin(Player player, String coinType) {
+        String upperCoinType = coinType.toUpperCase();
+        Double coinPrice = priceFetcher.getPrice(upperCoinType);
+        if (coinPrice == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Unsupported coin type: " + upperCoinType);
+            return;
+        }
+
+        Economy economy = CCoinCraft.getEconomy();
+        if (economy == null) {
+            player.sendMessage(ChatColor.RED + "[CCC] Vault or Economy is not available.");
+            return;
+        }
+
+        playerDAO.getCoinBalance(player.getUniqueId(), upperCoinType, (coinBalance) -> {
+            if (coinBalance <= 0) {
+                player.sendMessage(ChatColor.RED + "[CCC] You have no " + upperCoinType + " to sell.");
+                return;
+            }
+
+            double grossIncome = coinPrice * coinBalance; // 수수료 적용 전 금액
+            double feeAmount = grossIncome * fee;         // 수수료 금액
+            double netIncome = grossIncome - feeAmount;   // 수수료 차감 후 금액
+
+            // DB에서 코인 차감 및 거래 내역 기록
+            playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, -coinBalance);
             historyDAO.insertTransaction(
                     player.getUniqueId(),
                     player.getName(),
                     upperCoinType,
-                    -amount,
-                    "SELL"
+                    -coinBalance,
+                    "SELL_ALL"
             );
+
+            // 화폐 지급
+            economy.depositPlayer(player, netIncome);
+
+            // 로그
+            String amountFormatted = COIN_FORMAT.format(coinBalance);
+            String netIncomeFormatted = formatCurrency(netIncome);
+            String feeFormatted = formatCurrency(feeAmount);
+            player.sendMessage(ChatColor.GREEN + "[CCC] Successfully sold " + amountFormatted + " " + upperCoinType + " for " + netIncomeFormatted + " currency!");
+            player.sendMessage(ChatColor.YELLOW + "[CCC] A fee of " + feeFormatted + " currency has been deducted.");
         });
     }
 

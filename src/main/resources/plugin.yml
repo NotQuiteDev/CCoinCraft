@@ -1,22 +1,18 @@
 name: CCoinCraft
 main: org.lch.cCoinCraft.CCoinCraft
 version: 1.0
-api-version: 1.16
-depend: [Vault] # Vault를 종속성으로 추가
-
+api-version: 1.13
 commands:
   ccc:
-    description: Main command for the CCoinCraft plugin
-    usage: >
-      /ccc buy <coin> <amount>
-      /ccc sell <coin> <amount>
-      /ccc balance <coin>
-      /ccc wallet
-      /ccc price
-    aliases: [ccoincraft]
-    # permission: ccc.use  # 권한 설정 제거
-    permission-message: "You don't have permission to use this command."
-
+    description: CCoinCraft commands
+    usage: /<command> [buy/sell/balance/wallet/price/give/set/take]
+    aliases: [ccc]
+    permission: ccoincraft.use
+    permission-message: You do not have permission to use this command.
 permissions:
-# 특정 권한을 더 이상 추가하지 않습니다.
-# 모든 사용자가 명령어를 사용할 수 있도록 설정하려면 별도의 권한 설정 없이 두세요.
+  ccoincraft.use:
+    description: Allows use of CCoinCraft commands
+    default: true
+  ccoincraft.admin:
+    description: Allows admin commands for CCoinCraft
+    default: op

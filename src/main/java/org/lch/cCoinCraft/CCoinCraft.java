@@ -28,6 +28,7 @@ public class CCoinCraft extends JavaPlugin {
     private HistoryDAO historyDAO;
     private CoinGeckoPriceFetcher priceFetcher; // CoinGeckoPriceFetcher 필드 추가
     private static Economy economy = null;
+    private BtcTransactionService transactionService;
 
     @Override
     public void onEnable() {
@@ -67,7 +68,7 @@ public class CCoinCraft extends JavaPlugin {
         // DAO 생성
         btcHistoryDAO = new BtcHistoryDAO(databaseManager, queryQueue);
         historyDAO = new HistoryDAO(databaseManager, queryQueue);
-        playerDAO = new PlayerDAO(databaseManager, queryQueue);
+        playerDAO = new PlayerDAO(databaseManager, queryQueue,historyDAO);
 
         // CoinGeckoPriceFetcher 생성 및 시작
         priceFetcher = new CoinGeckoPriceFetcher(this);
@@ -77,8 +78,7 @@ public class CCoinCraft extends JavaPlugin {
         oreRewardService = new OreRewardService(this, playerDAO, btcHistoryDAO, priceFetcher);
 
         // BtcTransactionService 생성 시, historyDAO도 주입
-        BtcTransactionService transactionService = new BtcTransactionService(playerDAO, btcHistoryDAO, historyDAO, priceFetcher,this);
-
+        transactionService = new BtcTransactionService(playerDAO, historyDAO, priceFetcher, this);
         // 리스너 등록
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);
         // BlockBreakListener 등록
