@@ -142,13 +142,23 @@ public class PlayerDAO {
             try {
                 // 지원하는 모든 코인의 잔액을 한 번에 조회
                 StringBuilder sqlBuilder = new StringBuilder("SELECT ");
-                for (int i = 0; i < SUPPORTED_COINS.size(); i++) {
-                    String columnName = getColumnName(SUPPORTED_COINS.get(i));
+                List<String> validColumns = new ArrayList<>();
+                for (String coin : SUPPORTED_COINS) {
+                    String columnName = getColumnName(coin);
                     if (columnName != null) {
-                        sqlBuilder.append(columnName);
-                        if (i < SUPPORTED_COINS.size() - 1) {
-                            sqlBuilder.append(", ");
-                        }
+                        validColumns.add(columnName);
+                    }
+                }
+
+                if (validColumns.isEmpty()) {
+                    callback.accept(coinBalances);
+                    return;
+                }
+
+                for (int i = 0; i < validColumns.size(); i++) {
+                    sqlBuilder.append(validColumns.get(i));
+                    if (i < validColumns.size() - 1) {
+                        sqlBuilder.append(", ");
                     }
                 }
                 sqlBuilder.append(" FROM players WHERE uuid = ?");
@@ -194,7 +204,8 @@ public class PlayerDAO {
         updateCoinBalance(uuid, coinType, amount);
 
         // 거래 내역 기록: GIVE
-        historyDAO.insertTransaction(uuid, getPlayerNickname(uuid), coinType, amount, "GIVE");
+        String nickname = getPlayerNickname(uuid);
+        historyDAO.insertTransaction(uuid, nickname, coinType, amount, "GIVE");
     }
 
     /**
@@ -218,17 +229,24 @@ public class PlayerDAO {
                     return;
                 }
 
-                String sql = "INSERT INTO players (uuid, " + columnName + ") VALUES (?, ?) " +
-                        "ON DUPLICATE KEY UPDATE " + columnName + " = ?";
+                String nickname = getPlayerNickname(uuid);
+                if (nickname == null) {
+                    getLogger().warning("Nickname is null for uuid: " + uuid);
+                    nickname = "Unknown"; // 또는 적절한 기본값 설정
+                }
+
+                String sql = "INSERT INTO players (uuid, nickname, " + columnName + ") VALUES (?, ?, ?) " +
+                        "ON CONFLICT(uuid) DO UPDATE SET " + columnName + " = ?";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, uuid.toString());
-                    ps.setDouble(2, amount);
+                    ps.setString(2, nickname);
                     ps.setDouble(3, amount);
+                    ps.setDouble(4, amount);
                     ps.executeUpdate();
                 }
 
                 // 거래 내역 기록: SET
-                historyDAO.insertTransaction(uuid, getPlayerNickname(uuid), coinType, amount, "SET");
+                historyDAO.insertTransaction(uuid, nickname, coinType, amount, "SET");
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -282,7 +300,8 @@ public class PlayerDAO {
                 }
 
                 // 거래 내역 기록: TAKE
-                historyDAO.insertTransaction(uuid, getPlayerNickname(uuid), coinType, -amount, "TAKE");
+                String nickname = getPlayerNickname(uuid);
+                historyDAO.insertTransaction(uuid, nickname, coinType, -amount, "TAKE");
             } catch (SQLException e) {
                 e.printStackTrace();
             }
