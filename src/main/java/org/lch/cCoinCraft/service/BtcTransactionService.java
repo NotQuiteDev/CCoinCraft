@@ -7,6 +7,7 @@ import org.lch.cCoinCraft.CCoinCraft;
 import org.lch.cCoinCraft.database.BtcHistoryDAO;
 import org.lch.cCoinCraft.database.HistoryDAO;
 import org.lch.cCoinCraft.database.PlayerDAO;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.text.DecimalFormat;
 import java.util.Map;
@@ -20,15 +21,23 @@ public class BtcTransactionService {
     private final BtcHistoryDAO btcHistoryDAO; // BTC 거래 내역
     private final HistoryDAO historyDAO; // 모든 거래 내역
     private final CoinGeckoPriceFetcher priceFetcher;
+    private final double fee; // 수수료 필드
 
-    // 소수점 고정 형식: 8자리 소수점까지 표시 (사토시 단위 등)
-    private static final DecimalFormat COIN_FORMAT = new DecimalFormat("0.00000000");
+    // 소수점 고정 형식: 최대 8자리 소수점까지 표시 (불필요한 0은 제거)
+    private static final DecimalFormat COIN_FORMAT = new DecimalFormat("0.########");
 
-    public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, HistoryDAO historyDAO, CoinGeckoPriceFetcher priceFetcher) {
+    public BtcTransactionService(PlayerDAO playerDAO, BtcHistoryDAO btcHistoryDAO, HistoryDAO historyDAO, CoinGeckoPriceFetcher priceFetcher, JavaPlugin plugin) {
         this.playerDAO = playerDAO;
         this.btcHistoryDAO = btcHistoryDAO;
         this.historyDAO = historyDAO;
         this.priceFetcher = priceFetcher;
+        double configFee = plugin.getConfig().getDouble("transaction_fee", 0.0);
+        if (configFee < 0 || configFee > 1) {
+            plugin.getLogger().warning("Transaction fee is out of bounds (0-1). Defaulting to 0.");
+            this.fee = 0.0;
+        } else {
+            this.fee = configFee;
+        }
     }
 
     /**
@@ -41,7 +50,6 @@ public class BtcTransactionService {
             return;
         }
 
-        // 대문자로 변환
         String upperCoinType = coinType.toUpperCase();
         Double coinPrice = priceFetcher.getPrice(upperCoinType);
         if (coinPrice == null) {
@@ -55,12 +63,14 @@ public class BtcTransactionService {
             return;
         }
 
-        double totalCost = coinPrice * amount; // 총 비용
+        double grossCost = coinPrice * amount; // 수수료 적용 전 총 비용
+        double feeAmount = grossCost * fee;    // 수수료 금액
+        double totalCost = grossCost + feeAmount; // 수수료 포함 총 비용
+
         double balance = economy.getBalance(player);
 
         if (balance < totalCost) {
-            // 잔고 부족
-            player.sendMessage(ChatColor.RED + "[CCC] Insufficient currency! Need " + formatCurrency(totalCost) + " but you only have " + formatCurrency(balance));
+            player.sendMessage(ChatColor.RED + "[CCC] Insufficient currency! Need " + formatCurrency(totalCost) + " (including a fee of " + formatCurrency(feeAmount) + ") but you only have " + formatCurrency(balance));
             return;
         }
 
@@ -71,11 +81,12 @@ public class BtcTransactionService {
 
         // 로그
         String amountFormatted = COIN_FORMAT.format(amount);
-        String priceFormatted = formatCurrency(totalCost);
-        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + priceFormatted + " currency!");
+        String totalCostFormatted = formatCurrency(totalCost);
+        String feeFormatted = formatCurrency(feeAmount);
+        player.sendMessage(ChatColor.GREEN + "[CCC] Successfully purchased " + amountFormatted + " " + upperCoinType + " for " + totalCostFormatted + " currency!");
+        player.sendMessage(ChatColor.YELLOW + "[CCC] A fee of " + feeFormatted + " currency has been applied.");
 
-
-        // 모든 거래 내역 기록 (HistoryDAO)
+        // 모든 거래 내역 기록 (수수료는 기록하지 않음)
         historyDAO.insertTransaction(
                 player.getUniqueId(),
                 player.getName(),
@@ -95,7 +106,6 @@ public class BtcTransactionService {
             return;
         }
 
-        // 대문자로 변환
         String upperCoinType = coinType.toUpperCase();
         Double coinPrice = priceFetcher.getPrice(upperCoinType);
         if (coinPrice == null) {
@@ -109,31 +119,32 @@ public class BtcTransactionService {
             return;
         }
 
-        // 플레이어의 코인 잔고 확인 (비동기 호출)
         playerDAO.getCoinBalance(player.getUniqueId(), upperCoinType, (coinBalance) -> {
             if (coinBalance < amount) {
-                // 코인 잔고 부족
                 String required = COIN_FORMAT.format(amount);
                 String available = COIN_FORMAT.format(coinBalance);
                 player.sendMessage(ChatColor.RED + "[CCC] Insufficient " + upperCoinType + "! Need " + required + " " + upperCoinType + " but have only " + available + " " + upperCoinType + ".");
                 return;
             }
 
-            double income = coinPrice * amount; // 얻을 화폐
+            double grossIncome = coinPrice * amount; // 수수료 적용 전 금액
+            double feeAmount = grossIncome * fee;    // 수수료 금액
+            double netIncome = grossIncome - feeAmount; // 수수료 차감 후 금액
 
             // DB에서 코인 차감
             playerDAO.updateCoinBalance(player.getUniqueId(), upperCoinType, -amount);
 
             // 화폐 지급
-            economy.depositPlayer(player, income);
+            economy.depositPlayer(player, netIncome);
 
             // 로그
             String amountFormatted = COIN_FORMAT.format(amount);
-            String incomeFormatted = formatCurrency(income);
-            player.sendMessage(ChatColor.GREEN + "[CCC] Successfully sold " + amountFormatted + " " + upperCoinType + " for " + incomeFormatted + " currency!");
+            String netIncomeFormatted = formatCurrency(netIncome);
+            String feeFormatted = formatCurrency(feeAmount);
+            player.sendMessage(ChatColor.GREEN + "[CCC] Successfully sold " + amountFormatted + " " + upperCoinType + " for " + netIncomeFormatted + " currency!");
+            player.sendMessage(ChatColor.YELLOW + "[CCC] A fee of " + feeFormatted + " currency has been deducted.");
 
-
-            // 모든 거래 내역 기록 (HistoryDAO)
+            // 모든 거래 내역 기록 (수수료는 기록하지 않음)
             historyDAO.insertTransaction(
                     player.getUniqueId(),
                     player.getName(),
@@ -166,9 +177,11 @@ public class BtcTransactionService {
 
             String currencyFormatted = formatCurrency(currencyBal);
             String coinFormatted = COIN_FORMAT.format(coinBalance);
+            String feePercentage = String.format("%.2f%%", fee * 100);
 
             player.sendMessage(ChatColor.GOLD + "[CCC] Your Currency: " + currencyFormatted);
             player.sendMessage(ChatColor.GOLD + "[CCC] Your " + upperCoinType + ": " + coinFormatted + " " + upperCoinType);
+            player.sendMessage(ChatColor.YELLOW + "[CCC] Current Transaction Fee: " + feePercentage);
         });
     }
 
@@ -185,11 +198,13 @@ public class BtcTransactionService {
 
         double currencyBal = economy.getBalance(player);
         String currencyFormatted = formatCurrency(currencyBal);
+        String feePercentage = String.format("%.2f%%", fee * 100);
 
         playerDAO.getAllCoinBalances(player.getUniqueId(), (coinBalances) -> {
             StringBuilder walletMessage = new StringBuilder();
             walletMessage.append(ChatColor.GOLD).append("[CCC] Your Wallet:\n");
             walletMessage.append(ChatColor.GOLD).append("Currency: ").append(currencyFormatted).append("\n");
+            walletMessage.append(ChatColor.YELLOW).append("Transaction Fee: ").append(feePercentage).append("\n");
 
             if (coinBalances.isEmpty()) {
                 walletMessage.append(ChatColor.YELLOW).append("No coins found.");
@@ -207,9 +222,9 @@ public class BtcTransactionService {
     }
 
     /**
-     * 화폐 금액 포맷 (천 단위 콤마 추가)
+     * 화폐 금액 포맷 (소수점 이하 2자리, 천 단위 콤마 추가)
      */
     private String formatCurrency(double amount) {
-        return String.format("%,.0f", amount);
+        return String.format("%,.2f", amount);
     }
 }

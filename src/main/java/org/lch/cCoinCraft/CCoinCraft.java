@@ -77,7 +77,7 @@ public class CCoinCraft extends JavaPlugin {
         oreRewardService = new OreRewardService(this, playerDAO, btcHistoryDAO, priceFetcher);
 
         // BtcTransactionService 생성 시, historyDAO도 주입
-        BtcTransactionService transactionService = new BtcTransactionService(playerDAO, btcHistoryDAO, historyDAO, priceFetcher);
+        BtcTransactionService transactionService = new BtcTransactionService(playerDAO, btcHistoryDAO, historyDAO, priceFetcher,this);
 
         // 리스너 등록
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);

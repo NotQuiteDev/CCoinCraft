@@ -1,3 +1,6 @@
+# 거래 수수료 설정 (0 ~ 1 사이의 값)
+transaction_fee: 0.0001
+
 ore-rewards:
   DIAMOND_ORE:
     probability: 0.25      # 25% 확률로 지급 (다이아 희소성 고려)
@@ -62,3 +65,4 @@ ore-rewards:
   DEEPSLATE_COPPER_ORE:
     probability: 0.1
     amount: 0.000015
+
