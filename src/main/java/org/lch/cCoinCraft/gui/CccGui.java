@@ -11,10 +11,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.lch.cCoinCraft.service.CoinGeckoPriceFetcher;
 import org.lch.cCoinCraft.CCoinCraft;
 
+import java.text.DecimalFormat;
 import java.util.Arrays;
 
 /**
- * CCoinCraft GUI를 관리하는 클래스
+ * Manages the CCoinCraft GUI.
  */
 public class CccGui {
 
@@ -25,32 +26,32 @@ public class CccGui {
     }
 
     /**
-     * GUI의 초기 레이아웃을 설정하고 플레이어에게 인벤토리를 엽니다.
+     * Initializes and opens the GUI for the player.
      *
-     * @param player 플레이어
+     * @param player The player to open the GUI for.
      */
     public void openGui(Player player) {
-        Inventory inventory = Bukkit.createInventory(null, 54, "CCoinCraft - Coin Order"); // 54 슬롯 (6행)
+        Inventory inventory = Bukkit.createInventory(null, 54, "CCoinCraft - Coin Order"); // 54 slots (6 rows)
 
         initializeGui(inventory, player);
 
-        // GUI를 초기 상태로 설정
+        // Set GUI to initial state
         resetPlayerGui(inventory, player);
         player.openInventory(inventory);
     }
 
     private void initializeGui(Inventory inventory, Player player) {
-        // 모든 슬롯을 회색 유리창으로 채움
+        // Fill all slots with gray stained glass panes
         ItemStack grayPane = createItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < inventory.getSize(); i++) {
             inventory.setItem(i, grayPane);
         }
 
-        // BTC 설정
+        // BTC Setup
         ItemStack bitcoinTitle = createItem(Material.GOLD_BLOCK, ChatColor.GOLD + "Bitcoin (BTC)");
         ItemMeta btcMeta = bitcoinTitle.getItemMeta();
         if (btcMeta != null) {
-            btcMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getPrice("BTC")));
+            btcMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("BTC")));
             bitcoinTitle.setItemMeta(btcMeta);
         }
         inventory.setItem(0, bitcoinTitle);
@@ -58,11 +59,11 @@ public class CccGui {
         ItemStack bitcoinSelected = createItem(Material.GREEN_STAINED_GLASS_PANE, ChatColor.GREEN + "Bitcoin Selected");
         inventory.setItem(1, bitcoinSelected);
 
-        // ETH 설정
+        // ETH Setup
         ItemStack ethereumTitle = createItem(Material.DIAMOND_BLOCK, ChatColor.AQUA + "Ethereum (ETH)");
         ItemMeta ethMeta = ethereumTitle.getItemMeta();
         if (ethMeta != null) {
-            ethMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getPrice("ETH")));
+            ethMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("ETH")));
             ethereumTitle.setItemMeta(ethMeta);
         }
         inventory.setItem(9, ethereumTitle);
@@ -70,44 +71,54 @@ public class CccGui {
         ItemStack ethereumUnselected = createItem(Material.RED_STAINED_GLASS_PANE, ChatColor.RED + "Ethereum");
         inventory.setItem(10, ethereumUnselected);
 
-        // DOGE 통일성 설정
+        // DOGE Setup
         ItemStack dogeUnselected = createItem(Material.GOLD_INGOT, ChatColor.GOLD + "Doge");
+        ItemMeta dogeMeta = dogeUnselected.getItemMeta();
+        if (dogeMeta != null) {
+            dogeMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("DOGE")));
+            dogeUnselected.setItemMeta(dogeMeta);
+        }
         inventory.setItem(19, dogeUnselected);
 
-        // USDT 통일성 설정
+        // USDT Setup
         ItemStack usdtUnselected = createItem(Material.EMERALD_BLOCK, ChatColor.AQUA + "USDT");
+        ItemMeta usdtMeta = usdtUnselected.getItemMeta();
+        if (usdtMeta != null) {
+            usdtMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("USDT")));
+            usdtUnselected.setItemMeta(usdtMeta);
+        }
         inventory.setItem(28, usdtUnselected);
 
-        // DOGE 가격 표시
-        ItemStack dogePrice = createItem(Material.GOLD_INGOT, ChatColor.YELLOW + "Doge Price");
+        // DOGE Price Display
+        ItemStack dogePrice = createItem(Material.GOLD_INGOT, ChatColor.BLUE + "Doge Coin (DOGE)");
         ItemMeta dogePriceMeta = dogePrice.getItemMeta();
         if (dogePriceMeta != null) {
-            dogePriceMeta.setLore(Arrays.asList(ChatColor.GREEN + getPrice("DOGE")));
+            dogePriceMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("DOGE")));
             dogePrice.setItemMeta(dogePriceMeta);
         }
         inventory.setItem(18, dogePrice);
 
-        // USDT 가격 표시
-        ItemStack usdtPrice = createItem(Material.EMERALD_BLOCK, ChatColor.YELLOW + "USDT Price");
+        // USDT Price Display
+        ItemStack usdtPrice = createItem(Material.EMERALD_BLOCK, ChatColor.GREEN + "USDTether (USDT)");
         ItemMeta usdtPriceMeta = usdtPrice.getItemMeta();
         if (usdtPriceMeta != null) {
-            usdtPriceMeta.setLore(Arrays.asList(ChatColor.GREEN + getPrice("USDT")));
+            usdtPriceMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("USDT")));
             usdtPrice.setItemMeta(usdtPriceMeta);
         }
         inventory.setItem(27, usdtPrice);
 
-        // 정수 버튼 (슬롯 12)
+        // Integer Button (Slot 12)
         ItemStack integerButton = createIntegerButton(0);
         inventory.setItem(12, integerButton);
 
-        // 소수점 버튼들 (슬롯 13-17)
+        // Decimal Buttons (Slots 13-17)
         for (int i = 13; i <= 17; i++) {
-            int decimalPlace = i - 12; // 슬롯 13 -> 1번째 자리, ..., 슬롯 17 -> 5번째 자리
+            int decimalPlace = i - 12; // Slot 13 -> 1st decimal place, ..., Slot 17 -> 5th decimal place
             ItemStack decimalButton = createDecimalButton(decimalPlace, 0);
             inventory.setItem(i, decimalButton);
         }
 
-        // 구매/판매 버튼 (Buy All과 Sell All은 기존대로 유지)
+        // Buy/Sell Buttons (Buy All and Sell All remain unchanged)
         ItemStack buyAll = createItem(Material.EMERALD_BLOCK, ChatColor.GREEN + "Buy All");
         ItemMeta buyAllMeta = buyAll.getItemMeta();
         if (buyAllMeta != null) {
@@ -140,28 +151,28 @@ public class CccGui {
         }
         inventory.setItem(34, sellAll);
 
-        // 플레이어 헤드
+        // Player Head
         ItemStack playerHead = createPlayerHead(player);
         inventory.setItem(45, playerHead);
     }
 
 
     /**
-     * 플레이어의 GUI를 초기 상태로 설정하는 메서드
+     * Resets the player's GUI to the initial state.
      *
-     * @param inventory 인벤토리
-     * @param player    플레이어
+     * @param inventory The player's inventory.
+     * @param player    The player.
      */
     private void resetPlayerGui(Inventory inventory, Player player) {
-        setSelected(inventory, "BTC"); // 기본 선택 코인 (BTC)
+        setSelected(inventory, "BTC"); // Default selected coin (BTC)
         resetAmountDisplay(inventory);
     }
 
     /**
-     * 선택된 코인을 초록색으로 설정하고 나머지는 빨간색으로 설정
+     * Highlights the selected coin in green and others in red.
      *
-     * @param inventory 인벤토리
-     * @param coin      선택된 코인 심볼
+     * @param inventory The inventory.
+     * @param coin      The selected coin symbol.
      */
     public void setSelected(Inventory inventory, String coin) {
         switch (coin) {
@@ -180,7 +191,7 @@ public class CccGui {
             case "DOGE":
                 setGlassPane(inventory, 1, Material.RED_STAINED_GLASS_PANE, ChatColor.RED + "Bitcoin");
                 setGlassPane(inventory, 10, Material.RED_STAINED_GLASS_PANE, ChatColor.RED + "Ethereum");
-                setGlassPane(inventory, 19, Material.GREEN_STAINED_GLASS_PANE, ChatColor.GREEN + "Doge Selected");
+                setGlassPane(inventory, 19, Material.GREEN_STAINED_GLASS_PANE, ChatColor.GOLD + "Doge Selected");
                 setGlassPane(inventory, 28, Material.RED_STAINED_GLASS_PANE, ChatColor.RED + "USDT");
                 break;
             case "USDT":
@@ -195,10 +206,10 @@ public class CccGui {
     }
 
     /**
-     * 선택되지 않은 코인을 빨간색으로 설정
+     * Sets a coin as unselected (red glass pane).
      *
-     * @param inventory 인벤토리
-     * @param coin      코인 심볼
+     * @param inventory The inventory.
+     * @param coin      The coin symbol.
      */
     public void setUnselected(Inventory inventory, String coin) {
         switch (coin) {
@@ -220,64 +231,58 @@ public class CccGui {
     }
 
     /**
-     * 플레이어의 수량 표시를 초기화하는 메서드
+     * Resets the amount display (integer and decimal parts) to zero.
      *
-     * @param inventory 인벤토리
+     * @param inventory The inventory.
      */
     public void resetAmountDisplay(Inventory inventory) {
-        // 정수 부분 초기화 (슬롯 12)
+        // Reset integer part (slot 12)
         setIntegerDisplay(inventory, 0);
 
-        // 소수점 부분 초기화 (슬롯 13-17)
+        // Reset decimal parts (slots 13-17)
         for (int i = 13; i <= 17; i++) {
             setDecimalDisplay(inventory, i, 0);
         }
     }
 
     /**
-     * 정수 부분의 수량을 업데이트하는 메서드
+     * Updates the integer display.
      *
-     * @param inventory 인벤토리
-     * @param amount    정수 수량
+     * @param inventory The inventory.
+     * @param amount    The integer amount.
      */
     public void updateIntegerDisplay(Inventory inventory, int amount) {
-        // 슬롯 12에 정수 수량을 표시
-        String amountStr = String.valueOf(amount);
-        if (amountStr.length() > 6) {
-            amountStr = amountStr.substring(amountStr.length() - 6);
-        } else {
-            amountStr = String.format("%6s", amountStr).replace(' ', '0');
-        }
         setIntegerDisplay(inventory, amount);
     }
 
     /**
-     * 소수점 부분의 수량을 업데이트하는 메서드
+     * Updates a specific decimal display.
      *
-     * @param inventory 인벤토리
-     * @param slot      소수점 슬롯 번호 (13-17)
-     * @param digit     소수점 숫자 (0~9)
+     * @param inventory The inventory.
+     * @param slot      The slot number (13-17).
+     * @param digit     The decimal digit (0-9).
      */
     public void updateDecimalDisplay(Inventory inventory, int slot, int digit) {
         setDecimalDisplay(inventory, slot, digit);
     }
 
     /**
-     * 정수 부분의 수량을 표시하는 메서드
+     * Sets the integer display in slot 12 with appropriate lore.
      *
-     * @param inventory 인벤토리
-     * @param amount    정수 수량
+     * @param inventory The inventory.
+     * @param amount    The integer amount.
      */
     private void setIntegerDisplay(Inventory inventory, int amount) {
         String displayName = ChatColor.WHITE + "Amount: " + amount;
-        ItemStack button = createItem(Material.STONE_BUTTON, displayName);
+        ItemStack button = new ItemStack(Material.STONE_BUTTON);
         ItemMeta meta = button.getItemMeta();
         if (meta != null) {
+            meta.setDisplayName(displayName);
             meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "Shift + 좌클릭: +10",
-                    ChatColor.GRAY + "Shift + 우클릭: -10",
-                    ChatColor.GRAY + "좌클릭: +1",
-                    ChatColor.GRAY + "우클릭: -1"
+                    ChatColor.GRAY + "Shift + Left Click: +10",
+                    ChatColor.GRAY + "Shift + Right Click: -10",
+                    ChatColor.GRAY + "Left Click: +1",
+                    ChatColor.GRAY + "Right Click: -1"
             ));
             button.setItemMeta(meta);
         }
@@ -285,42 +290,43 @@ public class CccGui {
     }
 
     /**
-     * 소수점 부분의 수량을 표시하는 메서드
+     * Sets the decimal display in slots 13-17 with appropriate lore.
      *
-     * @param inventory 인벤토리
-     * @param slot      소수점 슬롯 번호 (13-17)
-     * @param digit     소수점 숫자 (0~9)
+     * @param inventory    The inventory.
+     * @param slot         The slot number (13-17).
+     * @param digit        The decimal digit (0-9).
      */
     private void setDecimalDisplay(Inventory inventory, int slot, int digit) {
         String decimalPlace;
         switch (slot) {
             case 13:
-                decimalPlace = "첫째 자리";
+                decimalPlace = "First Decimal Place";
                 break;
             case 14:
-                decimalPlace = "둘째 자리";
+                decimalPlace = "Second Decimal Place";
                 break;
             case 15:
-                decimalPlace = "셋째 자리";
+                decimalPlace = "Third Decimal Place";
                 break;
             case 16:
-                decimalPlace = "넷째 자리";
+                decimalPlace = "Fourth Decimal Place";
                 break;
             case 17:
-                decimalPlace = "다섯째 자리";
+                decimalPlace = "Fifth Decimal Place";
                 break;
             default:
-                decimalPlace = "소수점";
+                decimalPlace = "Decimal";
                 break;
         }
 
-        String displayName = ChatColor.WHITE + "소수점 " + decimalPlace + ": " + digit;
-        ItemStack button = createItem(Material.OAK_BUTTON, displayName);
+        String displayName = ChatColor.WHITE + "Decimal " + decimalPlace + ": " + digit;
+        ItemStack button = new ItemStack(Material.OAK_BUTTON);
         ItemMeta meta = button.getItemMeta();
         if (meta != null) {
+            meta.setDisplayName(displayName);
             meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "좌클릭: +1",
-                    ChatColor.GRAY + "우클릭: -1"
+                    ChatColor.GRAY + "Left Click: +1",
+                    ChatColor.GRAY + "Right Click: -1"
             ));
             button.setItemMeta(meta);
         }
@@ -328,12 +334,12 @@ public class CccGui {
     }
 
     /**
-     * 슬롯에 따라 아이템을 설정하는 메서드
+     * Sets a glass pane with specified material and display name.
      *
-     * @param inventory   인벤토리
-     * @param slot        슬롯 번호
-     * @param material    아이템 재질
-     * @param displayName 아이템 이름
+     * @param inventory   The inventory.
+     * @param slot        The slot number.
+     * @param material    The material of the pane.
+     * @param displayName The display name of the pane.
      */
     private void setGlassPane(Inventory inventory, int slot, Material material, String displayName) {
         ItemStack pane = createItem(material, displayName);
@@ -341,10 +347,10 @@ public class CccGui {
     }
 
     /**
-     * 플레이어의 머리를 표시하는 아이템을 생성하는 메서드
+     * Creates a player head item displaying the player's info.
      *
-     * @param player 플레이어
-     * @return 플레이어 머리 아이템
+     * @param player The player.
+     * @return The player head item.
      */
     private ItemStack createPlayerHead(Player player) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
@@ -353,7 +359,7 @@ public class CccGui {
             meta.setDisplayName(ChatColor.BLUE + player.getName() + "'s Info");
             // Fetch player's balance
             double balance = CCoinCraft.getEconomy().getBalance(player);
-            meta.setLore(Arrays.asList(ChatColor.YELLOW + "Balance: " + ChatColor.GREEN + String.format("%.2f", balance) + " KRW"));
+            meta.setLore(Arrays.asList(ChatColor.YELLOW + "Balance: " + ChatColor.GREEN + String.format("%,.2f", balance) + " KRW"));
             // Set the skull owner to the player
             if (meta instanceof org.bukkit.inventory.meta.SkullMeta) {
                 ((org.bukkit.inventory.meta.SkullMeta) meta).setOwningPlayer(player);
@@ -364,22 +370,27 @@ public class CccGui {
     }
 
     /**
-     * 코인 가격을 가져오는 메서드
+     * Formats the price of a coin to "#,###.## KRW".
      *
-     * @param coinSymbol 코인 심볼 (예: BTC, ETH)
-     * @return 가격 문자열
+     * @param coinSymbol The symbol of the coin (e.g., BTC, ETH).
+     * @return The formatted price string.
      */
-    private String getPrice(String coinSymbol) {
+    private String getFormattedPrice(String coinSymbol) {
         Double price = priceFetcher.getPrice(coinSymbol);
         if (price != null) {
-            return String.format("%.2f KRW", price);
+            DecimalFormat formatter = new DecimalFormat("#,###.##");
+            return formatter.format(price) + " KRW";
         } else {
             return "N/A";
         }
     }
 
     /**
-     * 버튼 생성 메서드 업데이트 (정수 및 소수점 초기값 설정)
+     * Creates an item with specified material and name.
+     *
+     * @param material The material of the item.
+     * @param name     The display name of the item.
+     * @return The created item.
      */
     private ItemStack createItem(Material material, String name) {
         ItemStack item = new ItemStack(material);
@@ -393,10 +404,10 @@ public class CccGui {
     }
 
     /**
-     * 정수 버튼을 생성하는 메서드
+     * Creates an integer button with appropriate lore.
      *
-     * @param amount 초기 정수 값
-     * @return 정수 버튼 아이템
+     * @param amount The initial integer value.
+     * @return The integer button item.
      */
     private ItemStack createIntegerButton(int amount) {
         String displayName = ChatColor.WHITE + "Amount: " + amount;
@@ -405,10 +416,10 @@ public class CccGui {
         if (meta != null) {
             meta.setDisplayName(displayName);
             meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "Shift + 좌클릭: +10",
-                    ChatColor.GRAY + "Shift + 우클릭: -10",
-                    ChatColor.GRAY + "좌클릭: +1",
-                    ChatColor.GRAY + "우클릭: -1"
+                    ChatColor.GRAY + "Shift + Left Click: +10",
+                    ChatColor.GRAY + "Shift + Right Click: -10",
+                    ChatColor.GRAY + "Left Click: +1",
+                    ChatColor.GRAY + "Right Click: -1"
             ));
             button.setItemMeta(meta);
         }
@@ -416,43 +427,43 @@ public class CccGui {
     }
 
     /**
-     * 소수점 버튼을 생성하는 메서드
+     * Creates a decimal button with appropriate lore.
      *
-     * @param decimalPlace 소수점 자리 (1-5)
-     * @param digit         초기 소수점 값
-     * @return 소수점 버튼 아이템
+     * @param decimalPlace The decimal place (1-5).
+     * @param digit         The initial decimal digit.
+     * @return The decimal button item.
      */
     private ItemStack createDecimalButton(int decimalPlace, int digit) {
         String placeText;
         switch (decimalPlace) {
             case 1:
-                placeText = "첫째 자리";
+                placeText = "First Decimal Place";
                 break;
             case 2:
-                placeText = "둘째 자리";
+                placeText = "Second Decimal Place";
                 break;
             case 3:
-                placeText = "셋째 자리";
+                placeText = "Third Decimal Place";
                 break;
             case 4:
-                placeText = "넷째 자리";
+                placeText = "Fourth Decimal Place";
                 break;
             case 5:
-                placeText = "다섯째 자리";
+                placeText = "Fifth Decimal Place";
                 break;
             default:
-                placeText = "소수점";
+                placeText = "Decimal";
                 break;
         }
 
-        String displayName = ChatColor.WHITE + "소수점 " + placeText + ": " + digit;
+        String displayName = ChatColor.WHITE + "Decimal " + placeText + ": " + digit;
         ItemStack button = new ItemStack(Material.OAK_BUTTON);
         ItemMeta meta = button.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(displayName);
             meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "좌클릭: +1",
-                    ChatColor.GRAY + "우클릭: -1"
+                    ChatColor.GRAY + "Left Click: +1",
+                    ChatColor.GRAY + "Right Click: -1"
             ));
             button.setItemMeta(meta);
         }
@@ -460,56 +471,56 @@ public class CccGui {
     }
 
     /**
-     * 코인 가격을 업데이트하는 메서드 (실시간 반영 필요 시 호출)
+     * Updates the prices of all coins in the GUI.
      *
-     * @param inventory 인벤토리
+     * @param inventory The inventory to update.
      */
     public void updatePrices(Inventory inventory) {
-        // 슬롯 0: Bitcoin 가격 업데이트
+        // Slot 0: Bitcoin Price Update
         ItemStack btcPrice = createItem(Material.GOLD_BLOCK, ChatColor.GOLD + "Bitcoin (BTC)");
         ItemMeta btcMeta = btcPrice.getItemMeta();
         if (btcMeta != null) {
-            btcMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getPrice("BTC")));
+            btcMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("BTC")));
             btcPrice.setItemMeta(btcMeta);
         }
         inventory.setItem(0, btcPrice);
 
-        // 슬롯 9: Ethereum 가격 업데이트
+        // Slot 9: Ethereum Price Update
         ItemStack ethPrice = createItem(Material.DIAMOND_BLOCK, ChatColor.AQUA + "Ethereum (ETH)");
         ItemMeta ethMeta = ethPrice.getItemMeta();
         if (ethMeta != null) {
-            ethMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getPrice("ETH")));
+            ethMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("ETH")));
             ethPrice.setItemMeta(ethMeta);
         }
         inventory.setItem(9, ethPrice);
 
-        // 슬롯 18: Doge 가격 업데이트
-        ItemStack dogePrice = createItem(Material.GOLD_INGOT, ChatColor.YELLOW + "Doge Price");
+        // Slot 18: Doge Price Update
+        ItemStack dogePrice = createItem(Material.GOLD_INGOT, ChatColor.BLUE + "Doge Coin (DOGE)");
         ItemMeta dogePriceMeta = dogePrice.getItemMeta();
         if (dogePriceMeta != null) {
-            dogePriceMeta.setLore(Arrays.asList(ChatColor.GREEN + getPrice("DOGE")));
+            dogePriceMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("DOGE")));
             dogePrice.setItemMeta(dogePriceMeta);
         }
         inventory.setItem(18, dogePrice);
 
-        // 슬롯 27: USDT 가격 업데이트
-        ItemStack usdtPrice = createItem(Material.EMERALD_BLOCK, ChatColor.YELLOW + "USDT Price");
+        // Slot 27: USDT Price Update
+        ItemStack usdtPrice = createItem(Material.EMERALD_BLOCK, ChatColor.GREEN + "USDTether (USDT)");
         ItemMeta usdtPriceMeta = usdtPrice.getItemMeta();
         if (usdtPriceMeta != null) {
-            usdtPriceMeta.setLore(Arrays.asList(ChatColor.GREEN + getPrice("USDT")));
+            usdtPriceMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Price: " + getFormattedPrice("USDT")));
             usdtPrice.setItemMeta(usdtPriceMeta);
         }
         inventory.setItem(27, usdtPrice);
     }
 
     /**
-     * 플레이어의 잔고 정보를 업데이트하는 메서드 (추후 구현 가능)
+     * Updates the player's balance information on their head.
      *
-     * @param inventory 인벤토리
-     * @param player    플레이어
+     * @param inventory The inventory.
+     * @param player    The player.
      */
     public void updatePlayerInfo(Inventory inventory, Player player) {
-        // 슬롯 45: 플레이어 머리 및 로어 업데이트
+        // Slot 45: Player Head and Balance Info Update
         ItemStack playerHead = createPlayerHead(player);
         inventory.setItem(45, playerHead);
     }

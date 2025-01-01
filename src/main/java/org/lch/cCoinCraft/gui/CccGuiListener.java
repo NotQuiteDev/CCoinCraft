@@ -19,10 +19,10 @@ public class CccGuiListener implements Listener {
     private final CoinGeckoPriceFetcher priceFetcher;
     private final CccGui cccGui;
 
-    // 플레이어별 선택된 코인과 수량을 저장
+    // Stores selected coins and amounts per player
     private final Map<UUID, String> playerSelectedCoins;
-    private final Map<UUID, Integer> playerIntegerAmounts; // 정수 부분 (0~999999)
-    private final Map<UUID, int[]> playerDecimalAmounts; // 소수점 부분 (0~9) 각 자리별
+    private final Map<UUID, Integer> playerIntegerAmounts; // Integer part (0~999999)
+    private final Map<UUID, int[]> playerDecimalAmounts; // Decimal part (0~9) per place
 
     public CccGuiListener(CoinGeckoPriceFetcher priceFetcher, CccGui cccGui) {
         this.priceFetcher = priceFetcher;
@@ -34,17 +34,17 @@ public class CccGuiListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        // 클릭한 인벤토리가 CCoinCraft GUI가 아니면 무시
+        // Ignore clicks outside of CCoinCraft GUI
         if (!event.getView().getTitle().equals("CCoinCraft - Coin Order")) {
             return;
         }
 
-        event.setCancelled(true); // 기본 클릭 동작 취소
+        event.setCancelled(true); // Cancel default click behavior
 
-        // 클릭한 슬롯 번호
+        // Get the clicked slot
         int slot = event.getRawSlot();
 
-        // 클릭한 플레이어
+        // Ensure the clicker is a player
         if (!(event.getWhoClicked() instanceof Player)) {
             return;
         }
@@ -52,11 +52,11 @@ public class CccGuiListener implements Listener {
         Player player = (Player) event.getWhoClicked();
         UUID playerId = player.getUniqueId();
 
-        // 현재 플레이어의 인벤토리 참조
+        // Reference to the player's inventory
         Inventory inventory = event.getInventory();
 
         switch (slot) {
-            // 코인 선택 슬롯
+            // Coin selection slots
             case 1: // Bitcoin
                 selectCoin(player, "BTC", inventory);
                 break;
@@ -73,52 +73,52 @@ public class CccGuiListener implements Listener {
                 selectCoin(player, "USDT", inventory);
                 break;
 
-            // 수량 조정 슬롯
-            case 12: // 정수 부분 (슬롯 12)
+            // Quantity adjustment slots
+            case 12: // Integer part (slot 12)
                 handleIntegerSelection(player, slot, event, inventory);
                 break;
 
-            // 소수점 조정 슬롯 (슬롯 13-17)
-            case 13: // 소수점 첫째 자리
-            case 14: // 소수점 둘째 자리
-            case 15: // 소수점 셋째 자리
-            case 16: // 소수점 넷째 자리
-            case 17: // 소수점 다섯째 자리
+            // Decimal adjustment slots (slots 13-17)
+            case 13: // First decimal place
+            case 14: // Second decimal place
+            case 15: // Third decimal place
+            case 16: // Fourth decimal place
+            case 17: // Fifth decimal place
                 handleDecimalSelection(player, slot, event, inventory);
                 break;
 
-            // 구매/판매 버튼
+            // Buy/Sell buttons
             case 31: // Buy All
-                executeCommand(player, "buyall");
+                executeCommand(player, "buyall", inventory);
                 break;
 
             case 32: // Buy
-                executeCommand(player, "buy");
+                executeCommand(player, "buy", inventory);
                 break;
 
             case 33: // Sell
-                executeCommand(player, "sell");
+                executeCommand(player, "sell", inventory);
                 break;
 
             case 34: // Sell All
-                executeCommand(player, "sellall");
+                executeCommand(player, "sellall", inventory);
                 break;
 
-            // 기타 슬롯 클릭 시 무시
+            // Ignore other slots
             default:
                 break;
         }
     }
 
     private void selectCoin(Player player, String coin, Inventory inventory) {
-        // 기존 선택 해제
+        // Deselect other coins
         for (String existingCoin : new String[]{"BTC", "ETH", "DOGE", "USDT"}) {
             if (!existingCoin.equals(coin)) {
                 cccGui.setUnselected(inventory, existingCoin);
             }
         }
 
-        // 선택된 코인 설정
+        // Set the selected coin
         playerSelectedCoins.put(player.getUniqueId(), coin);
         playerIntegerAmounts.put(player.getUniqueId(), 0);
         playerDecimalAmounts.put(player.getUniqueId(), new int[]{0, 0, 0, 0, 0});
@@ -127,7 +127,7 @@ public class CccGuiListener implements Listener {
         player.sendMessage(ChatColor.GREEN + "Selected Coin: " + coin);
     }
 
-    private void executeCommand(Player player, String action) {
+    private void executeCommand(Player player, String action, Inventory inventory) {
         String coin = getSelectedCoin(player);
         String amount = getAmount(player);
 
@@ -159,10 +159,13 @@ public class CccGuiListener implements Listener {
 
         // Provide feedback to player
         player.sendMessage(ChatColor.YELLOW + "Executing: " + ChatColor.GREEN + "/ccc " + command);
+
+        // Update player balance info
+        cccGui.updatePlayerInfo(inventory, player);
     }
 
     private String getSelectedCoin(Player player) {
-        return playerSelectedCoins.getOrDefault(player.getUniqueId(), "BTC"); // 기본값 BTC
+        return playerSelectedCoins.getOrDefault(player.getUniqueId(), "BTC"); // Default is BTC
     }
 
     private String getAmount(Player player) {
@@ -196,14 +199,14 @@ public class CccGuiListener implements Listener {
 
         currentAmount += increment;
 
-        // 최소값과 최대값 설정
+        // Set minimum and maximum values
         if (currentAmount < 0) {
             currentAmount = 0;
         } else if (currentAmount > 999999) {
             currentAmount = 999999;
         }
 
-        // 수량 업데이트
+        // Update amount
         playerIntegerAmounts.put(playerId, currentAmount);
         cccGui.updateIntegerDisplay(inventory, currentAmount);
     }
@@ -212,11 +215,11 @@ public class CccGuiListener implements Listener {
         UUID playerId = player.getUniqueId();
         int[] decimalParts = playerDecimalAmounts.getOrDefault(playerId, new int[]{0, 0, 0, 0, 0});
 
-        // 소수점 자리를 결정 (슬롯 13-17: 첫째 자리부터 다섯째 자리)
-        int decimalPlace = slot - 13; // 슬롯 13 -> 0번째 소수점 자리, ..., 슬롯 17 -> 4번째 자리
+        // Determine the decimal place (slots 13-17: first to fifth decimal place)
+        int decimalPlace = slot - 13; // Slot 13 -> 0th decimal place, ..., Slot 17 -> 4th decimal place
 
         if (decimalPlace < 0 || decimalPlace >= 5) {
-            // 유효하지 않은 슬롯
+            // Invalid slot
             return;
         }
 
@@ -236,11 +239,11 @@ public class CccGuiListener implements Listener {
             }
         }
 
-        // 소수점 자리의 값을 업데이트
+        // Update the specific decimal place
         decimalParts[decimalPlace] = digit;
         playerDecimalAmounts.put(playerId, decimalParts);
 
-        // 소수점 슬롯 업데이트
+        // Update the decimal button in the GUI
         cccGui.updateDecimalDisplay(inventory, slot, digit);
     }
 }
