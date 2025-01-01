@@ -124,24 +124,25 @@ public class CccGuiListener implements Listener {
         playerDecimalAmounts.put(player.getUniqueId(), new int[]{0, 0, 0, 0, 0});
         cccGui.setSelected(inventory, coin);
         cccGui.resetAmountDisplay(inventory);
+        cccGui.updatePlayerInfoLore(inventory, player); // Update lore with new selection
         player.sendMessage(ChatColor.GREEN + "Selected Coin: " + coin);
     }
 
     private void executeCommand(Player player, String action, Inventory inventory) {
         String coin = getSelectedCoin(player);
-        String amount = getAmount(player);
+        double amount = getPlayerAmount(player.getUniqueId());
 
         String command;
 
         switch (action.toLowerCase()) {
             case "buy":
-                command = "buy " + coin + " " + amount;
+                command = "buy " + coin + " " + String.format("%.5f", amount);
                 break;
             case "buyall":
                 command = "buy " + coin + " all";
                 break;
             case "sell":
-                command = "sell " + coin + " " + amount;
+                command = "sell " + coin + " " + String.format("%.5f", amount);
                 break;
             case "sellall":
                 command = "sell " + coin + " all";
@@ -160,22 +161,22 @@ public class CccGuiListener implements Listener {
         // Provide feedback to player
         player.sendMessage(ChatColor.YELLOW + "Executing: " + ChatColor.GREEN + "/ccc " + command);
 
-        // Update player balance info
-        cccGui.updatePlayerInfo(inventory, player);
+        // Update player balance and transaction info
+        cccGui.updatePlayerInfoLore(inventory, player);
     }
 
     private String getSelectedCoin(Player player) {
         return playerSelectedCoins.getOrDefault(player.getUniqueId(), "BTC"); // Default is BTC
     }
 
-    private String getAmount(Player player) {
-        int integerPart = playerIntegerAmounts.getOrDefault(player.getUniqueId(), 0);
-        int[] decimalParts = playerDecimalAmounts.getOrDefault(player.getUniqueId(), new int[]{0, 0, 0, 0, 0});
-        StringBuilder decimalBuilder = new StringBuilder();
-        for (int digit : decimalParts) {
-            decimalBuilder.append(digit);
+    public double getPlayerAmount(UUID playerId) {
+        int integerPart = playerIntegerAmounts.getOrDefault(playerId, 0);
+        int[] decimalParts = playerDecimalAmounts.getOrDefault(playerId, new int[]{0, 0, 0, 0, 0});
+        double decimalValue = 0.0;
+        for (int i = 0; i < decimalParts.length; i++) {
+            decimalValue += decimalParts[i] * Math.pow(10, -(i + 1));
         }
-        return integerPart + "." + decimalBuilder.toString();
+        return integerPart + decimalValue;
     }
 
     private void handleIntegerSelection(Player player, int slot, InventoryClickEvent event, Inventory inventory) {
@@ -209,6 +210,7 @@ public class CccGuiListener implements Listener {
         // Update amount
         playerIntegerAmounts.put(playerId, currentAmount);
         cccGui.updateIntegerDisplay(inventory, currentAmount);
+        cccGui.updatePlayerInfoLore(inventory, player); // Update lore with new amount
     }
 
     private void handleDecimalSelection(Player player, int slot, InventoryClickEvent event, Inventory inventory) {
@@ -245,5 +247,17 @@ public class CccGuiListener implements Listener {
 
         // Update the decimal button in the GUI
         cccGui.updateDecimalDisplay(inventory, slot, digit);
+        cccGui.updatePlayerInfoLore(inventory, player); // Update lore with new amount
     }
+
+    /**
+     * Retrieves the selected coin for a player.
+     *
+     * @param playerId The UUID of the player.
+     * @return The selected coin symbol.
+     */
+    public String getPlayerSelectedCoin(UUID playerId) {
+        return playerSelectedCoins.getOrDefault(playerId, "BTC");
+    }
+
 }

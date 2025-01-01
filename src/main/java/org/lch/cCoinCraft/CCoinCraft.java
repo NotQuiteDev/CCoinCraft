@@ -33,6 +33,7 @@ public class CCoinCraft extends JavaPlugin {
     private CoinGeckoPriceFetcher priceFetcher;
     private static Economy economy = null;
     private BtcTransactionService transactionService;
+    private static CccGuiListener guiListener; // Added to access listener methods
 
     // GUI 관련 필드
     private CccGui cccGui;
@@ -71,7 +72,7 @@ public class CCoinCraft extends JavaPlugin {
         // DAO 생성
         btcHistoryDAO = new BtcHistoryDAO(databaseManager, queryQueue);
         historyDAO = new HistoryDAO(databaseManager, queryQueue);
-        playerDAO = new PlayerDAO(databaseManager, queryQueue,historyDAO);
+        playerDAO = new PlayerDAO(databaseManager, queryQueue, historyDAO);
 
         // CoinGeckoPriceFetcher 생성 및 시작
         priceFetcher = new CoinGeckoPriceFetcher(this);
@@ -87,9 +88,10 @@ public class CCoinCraft extends JavaPlugin {
         cccGui = new CccGui(priceFetcher);
 
         // 리스너 등록
+        guiListener = new CccGuiListener(priceFetcher, cccGui);
+        getServer().getPluginManager().registerEvents(guiListener, this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);
         getServer().getPluginManager().registerEvents(new BlockBreakListener(oreRewardService), this);
-        getServer().getPluginManager().registerEvents(new CccGuiListener(priceFetcher, cccGui), this);
 
         // 커맨드 등록
         CccCommand cccCommand = new CccCommand(playerDAO, transactionService, priceFetcher, cccGui);
@@ -115,6 +117,15 @@ public class CCoinCraft extends JavaPlugin {
 
     public static Economy getEconomy() {
         return economy;
+    }
+
+    /**
+     * Retrieves the CccGuiListener instance.
+     *
+     * @return The CccGuiListener instance.
+     */
+    public static CccGuiListener getGuiListener() {
+        return guiListener;
     }
 
     @Override

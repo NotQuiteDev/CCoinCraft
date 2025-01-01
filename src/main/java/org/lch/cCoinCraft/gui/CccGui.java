@@ -130,15 +130,24 @@ public class CccGui {
         ItemStack buy = createItem(Material.EMERALD, ChatColor.GREEN + "Buy");
         ItemMeta buyMeta = buy.getItemMeta();
         if (buyMeta != null) {
-            buyMeta.setLore(Arrays.asList(ChatColor.GRAY + "Select to buy the selected amount of the selected coin"));
+            buyMeta.setLore(Arrays.asList(
+                    ChatColor.YELLOW + "Selected Coin: " + ChatColor.GREEN + "BTC",
+                    ChatColor.YELLOW + "Amount: " + ChatColor.GREEN + "0.00000",
+                    ChatColor.YELLOW + "Total Price: " + ChatColor.GREEN + "0.00"
+            ));
             buy.setItemMeta(buyMeta);
         }
         inventory.setItem(32, buy);
 
+// Sell 버튼 설정
         ItemStack sell = createItem(Material.REDSTONE, ChatColor.RED + "Sell");
         ItemMeta sellMeta = sell.getItemMeta();
         if (sellMeta != null) {
-            sellMeta.setLore(Arrays.asList(ChatColor.GRAY + "Select to sell the selected amount of the selected coin"));
+            sellMeta.setLore(Arrays.asList(
+                    ChatColor.YELLOW + "Selected Coin: " + ChatColor.GREEN + "BTC",
+                    ChatColor.YELLOW + "Amount: " + ChatColor.GREEN + "0.00000",
+                    ChatColor.YELLOW + "Total Price: " + ChatColor.GREEN + "0.00"
+            ));
             sell.setItemMeta(sellMeta);
         }
         inventory.setItem(33, sell);
@@ -151,8 +160,8 @@ public class CccGui {
         }
         inventory.setItem(34, sellAll);
 
-        // Player Head
-        ItemStack playerHead = createPlayerHead(player);
+        // Player Head (Slot 45)
+        ItemStack playerHead = createPlayerHead(player, "BTC", 0.00000, 0.00);
         inventory.setItem(45, playerHead);
     }
 
@@ -166,7 +175,39 @@ public class CccGui {
     private void resetPlayerGui(Inventory inventory, Player player) {
         setSelected(inventory, "BTC"); // Default selected coin (BTC)
         resetAmountDisplay(inventory);
+        updatePlayerInfoLore(inventory, player); // Initialize lore with default values
     }
+    // 로어 업데이트 메소드 추가
+    public void updateBuySellLore(Inventory inventory, String selectedCoin, double amount, double totalPrice) {
+        // Buy 버튼 업데이트
+        ItemStack buy = inventory.getItem(32);
+        if (buy != null) {
+            ItemMeta buyMeta = buy.getItemMeta();
+            if (buyMeta != null) {
+                buyMeta.setLore(Arrays.asList(
+                        ChatColor.YELLOW + "Selected Coin: " + ChatColor.GREEN + selectedCoin,
+                        ChatColor.YELLOW + "Amount: " + ChatColor.GREEN + String.format("%.5f", amount),
+                        ChatColor.YELLOW + "Total Price: " + ChatColor.GREEN + String.format("%, .2f", totalPrice)
+                ));
+                buy.setItemMeta(buyMeta);
+            }
+        }
+
+        // Sell 버튼 업데이트
+        ItemStack sell = inventory.getItem(33);
+        if (sell != null) {
+            ItemMeta sellMeta = sell.getItemMeta();
+            if (sellMeta != null) {
+                sellMeta.setLore(Arrays.asList(
+                        ChatColor.YELLOW + "Selected Coin: " + ChatColor.GREEN + selectedCoin,
+                        ChatColor.YELLOW + "Amount: " + ChatColor.GREEN + String.format("%.5f", amount),
+                        ChatColor.YELLOW + "Total Price: " + ChatColor.GREEN + String.format("%, .2f", totalPrice)
+                ));
+                sell.setItemMeta(sellMeta);
+            }
+        }
+    }
+
 
     /**
      * Highlights the selected coin in green and others in red.
@@ -292,9 +333,9 @@ public class CccGui {
     /**
      * Sets the decimal display in slots 13-17 with appropriate lore.
      *
-     * @param inventory    The inventory.
-     * @param slot         The slot number (13-17).
-     * @param digit        The decimal digit (0-9).
+     * @param inventory The inventory.
+     * @param slot      The slot number (13-17).
+     * @param digit     The decimal digit (0-9).
      */
     private void setDecimalDisplay(Inventory inventory, int slot, int digit) {
         String decimalPlace;
@@ -319,12 +360,13 @@ public class CccGui {
                 break;
         }
 
-        String displayName = ChatColor.WHITE + "Decimal " + decimalPlace + ": " + digit;
+        String displayName = ChatColor.WHITE + "" + digit;
         ItemStack button = new ItemStack(Material.OAK_BUTTON);
         ItemMeta meta = button.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(displayName);
             meta.setLore(Arrays.asList(
+                    ChatColor.GRAY + "Decimal " + decimalPlace + ": " + digit,
                     ChatColor.GRAY + "Left Click: +1",
                     ChatColor.GRAY + "Right Click: -1"
             ));
@@ -349,17 +391,25 @@ public class CccGui {
     /**
      * Creates a player head item displaying the player's info.
      *
-     * @param player The player.
+     * @param player        The player.
+     * @param selectedCoin  The currently selected coin.
+     * @param amount        The current amount selected.
+     * @param totalPrice    The total price calculated.
      * @return The player head item.
      */
-    private ItemStack createPlayerHead(Player player) {
+    private ItemStack createPlayerHead(Player player, String selectedCoin, double amount, double totalPrice) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(ChatColor.BLUE + player.getName() + "'s Info");
             // Fetch player's balance
             double balance = CCoinCraft.getEconomy().getBalance(player);
-            meta.setLore(Arrays.asList(ChatColor.YELLOW + "Balance: " + ChatColor.GREEN + String.format("%,.2f", balance) + " KRW"));
+            meta.setLore(Arrays.asList(
+                    ChatColor.YELLOW + "Balance: " + ChatColor.GREEN + String.format("%.2f", balance),
+                    ChatColor.YELLOW + "Selected Coin: " + ChatColor.GREEN + selectedCoin,
+                    ChatColor.YELLOW + "Amount: " + ChatColor.GREEN + String.format("%.5f", amount),
+                    ChatColor.YELLOW + "Total Price: " + ChatColor.GREEN + String.format("%, .2f", totalPrice)
+            ));
             // Set the skull owner to the player
             if (meta instanceof org.bukkit.inventory.meta.SkullMeta) {
                 ((org.bukkit.inventory.meta.SkullMeta) meta).setOwningPlayer(player);
@@ -370,7 +420,40 @@ public class CccGui {
     }
 
     /**
-     * Formats the price of a coin to "#,###.## KRW".
+     * Updates the player head's lore with current info.
+     *
+     * @param inventory The inventory.
+     * @param player    The player.
+     */
+    public void updatePlayerInfoLore(Inventory inventory, Player player) {
+        String selectedCoin = CCoinCraft.getGuiListener().getPlayerSelectedCoin(player.getUniqueId());
+        double amount = CCoinCraft.getGuiListener().getPlayerAmount(player.getUniqueId());
+        double totalPrice = calculateTotalPrice(selectedCoin, amount);
+
+        ItemStack playerHead = createPlayerHead(player, selectedCoin, amount, totalPrice);
+        inventory.setItem(45, playerHead);
+
+        // Buy 및 Sell 버튼 로어 업데이트
+        updateBuySellLore(inventory, selectedCoin, amount, totalPrice);
+    }
+
+    /**
+     * Calculates the total price based on selected coin and amount.
+     *
+     * @param coin   The selected coin.
+     * @param amount The amount selected.
+     * @return The total price.
+     */
+    private double calculateTotalPrice(String coin, double amount) {
+        Double price = priceFetcher.getPrice(coin);
+        if (price != null) {
+            return price * amount;
+        }
+        return 0.0;
+    }
+
+    /**
+     * Formats the price of a coin to "#,###.##".
      *
      * @param coinSymbol The symbol of the coin (e.g., BTC, ETH).
      * @return The formatted price string.
@@ -379,7 +462,7 @@ public class CccGui {
         Double price = priceFetcher.getPrice(coinSymbol);
         if (price != null) {
             DecimalFormat formatter = new DecimalFormat("#,###.##");
-            return formatter.format(price) + " KRW";
+            return formatter.format(price);
         } else {
             return "N/A";
         }
@@ -456,12 +539,13 @@ public class CccGui {
                 break;
         }
 
-        String displayName = ChatColor.WHITE + "Decimal " + placeText + ": " + digit;
+        String displayName = ChatColor.WHITE + ""+ digit;
         ItemStack button = new ItemStack(Material.OAK_BUTTON);
         ItemMeta meta = button.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(displayName);
             meta.setLore(Arrays.asList(
+                    ChatColor.GRAY + "Decimal " + placeText + ": " + digit,
                     ChatColor.GRAY + "Left Click: +1",
                     ChatColor.GRAY + "Right Click: -1"
             ));
@@ -514,14 +598,12 @@ public class CccGui {
     }
 
     /**
-     * Updates the player's balance information on their head.
+     * Updates the player's balance and transaction info on their head.
      *
      * @param inventory The inventory.
      * @param player    The player.
      */
     public void updatePlayerInfo(Inventory inventory, Player player) {
-        // Slot 45: Player Head and Balance Info Update
-        ItemStack playerHead = createPlayerHead(player);
-        inventory.setItem(45, playerHead);
+        updatePlayerInfoLore(inventory, player);
     }
 }
