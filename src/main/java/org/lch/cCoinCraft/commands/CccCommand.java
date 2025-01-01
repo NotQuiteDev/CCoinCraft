@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.lch.cCoinCraft.service.BtcTransactionService;
 import org.lch.cCoinCraft.service.CoinGeckoPriceFetcher;
 import org.lch.cCoinCraft.database.PlayerDAO;
+import org.lch.cCoinCraft.gui.CccGui;
 
 import java.util.Arrays;
 import java.util.List;
@@ -18,6 +19,7 @@ public class CccCommand implements CommandExecutor {
     private final PlayerDAO playerDAO;
     private final BtcTransactionService transactionService;
     private final CoinGeckoPriceFetcher priceFetcher;
+    private final CccGui cccGui;
 
     // 코인 리스트를 클래스 내에서 관리
     private static final List<String> COINS = Arrays.asList("BTC", "ETH", "DOGE", "USDT");
@@ -25,10 +27,11 @@ public class CccCommand implements CommandExecutor {
     // 어드민 명령어 리스트
     private static final List<String> ADMIN_ACTIONS = Arrays.asList("give", "set", "take");
 
-    public CccCommand(PlayerDAO playerDAO, BtcTransactionService transactionService, CoinGeckoPriceFetcher priceFetcher) {
+    public CccCommand(PlayerDAO playerDAO, BtcTransactionService transactionService, CoinGeckoPriceFetcher priceFetcher, CccGui cccGui) {
         this.playerDAO = playerDAO;
         this.transactionService = transactionService;
         this.priceFetcher = priceFetcher;
+        this.cccGui = cccGui;
     }
 
     @Override
@@ -41,11 +44,17 @@ public class CccCommand implements CommandExecutor {
         Player player = (Player) sender;
 
         if (args.length == 0) {
-            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc [buy/sell/balance/wallet/price/give/set/take] <coin> <amount>");
+            player.sendMessage(ChatColor.RED + "[CCC] Incorrect command format. Usage: /ccc [buy/sell/balance/wallet/price/give/set/take/gui] <coin> <amount>");
             return true;
         }
 
         String action = args[0].toLowerCase();
+
+        // GUI 열기 명령어 처리
+        if (action.equals("gui")) {
+            cccGui.openGui(player);
+            return true;
+        }
 
         // 어드민 명령어 처리
         if (ADMIN_ACTIONS.contains(action)) {

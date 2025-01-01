@@ -1,3 +1,4 @@
+// src/main/java/org/lch/cCoinCraft/CCoinCraft.java
 package org.lch.cCoinCraft;
 
 import net.milkbowl.vault.economy.Economy;
@@ -15,20 +16,26 @@ import org.lch.cCoinCraft.listeners.PlayerJoinListener;
 import org.lch.cCoinCraft.service.BtcTransactionService;
 import org.lch.cCoinCraft.service.CoinGeckoPriceFetcher;
 import org.lch.cCoinCraft.service.OreRewardService;
+import org.lch.cCoinCraft.gui.CccGui;
+import org.lch.cCoinCraft.gui.CccGuiListener;
 
 import java.io.File;
 
 public class CCoinCraft extends JavaPlugin {
 
+    // 기존 필드들...
     private DatabaseManager databaseManager;
     private QueryQueue queryQueue;
     private PlayerDAO playerDAO;
     private OreRewardService oreRewardService;
     private BtcHistoryDAO btcHistoryDAO;
     private HistoryDAO historyDAO;
-    private CoinGeckoPriceFetcher priceFetcher; // CoinGeckoPriceFetcher 필드 추가
+    private CoinGeckoPriceFetcher priceFetcher;
     private static Economy economy = null;
     private BtcTransactionService transactionService;
+
+    // GUI 관련 필드
+    private CccGui cccGui;
 
     @Override
     public void onEnable() {
@@ -36,7 +43,6 @@ public class CCoinCraft extends JavaPlugin {
         // Vault 연동
         if (!setupEconomy()) {
             getLogger().severe("Vault 연동에 실패했습니다. Vault 플러그인 및 Economy 플러그인을 확인하세요.");
-            // 서버를 중단시키거나, 기능 제한 가능
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -46,11 +52,8 @@ public class CCoinCraft extends JavaPlugin {
             getDataFolder().mkdirs();
         }
 
-        // config.yml이 없으면 resources/config.yml를 복사해옴
+        // config.yml 복사 및 로드
         saveDefaultConfig();
-        // config 불러오기
-        // (보통은 saveDefaultConfig() 후 자동으로 불러와지므로 생략 가능하지만,
-        //  혹시 갱신된 내용이 있다면 reloadConfig() 호출)
         reloadConfig();
 
         // DB 파일 지정
@@ -79,13 +82,18 @@ public class CCoinCraft extends JavaPlugin {
 
         // BtcTransactionService 생성 시, historyDAO도 주입
         transactionService = new BtcTransactionService(playerDAO, historyDAO, priceFetcher, this);
+
+        // GUI 클래스 초기화
+        cccGui = new CccGui(priceFetcher);
+
         // 리스너 등록
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerDAO), this);
-        // BlockBreakListener 등록
         getServer().getPluginManager().registerEvents(new BlockBreakListener(oreRewardService), this);
+        getServer().getPluginManager().registerEvents(new CccGuiListener(priceFetcher, cccGui), this);
 
         // 커맨드 등록
-        getCommand("ccc").setExecutor(new CccCommand(playerDAO, transactionService, priceFetcher)); // 수정된 부분
+        CccCommand cccCommand = new CccCommand(playerDAO, transactionService, priceFetcher, cccGui);
+        getCommand("ccc").setExecutor(cccCommand);
 
         // TabCompleter 등록
         this.getCommand("ccc").setTabCompleter(new CccCommandTabCompleter());
