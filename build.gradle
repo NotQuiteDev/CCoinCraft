@@ -1,9 +1,10 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '7.1.2' // Shadow Plugin 추가
 }
 
 group = 'org.lch'
-version = '1.0-SNAPSHOT'
+version = '1.0-CUSTOM' // 원하는 버전으로 변경
 
 repositories {
     mavenCentral()
@@ -15,44 +16,49 @@ repositories {
         name = "sonatype"
         url = "https://oss.sonatype.org/content/groups/public/"
     }
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
+    compileOnly "com.github.MilkBowl:VaultAPI:1.7" // 올바른 VaultAPI 버전
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'com.google.code.gson:gson:2.8.9'
 }
 
-def targetJavaVersion = 17
 java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
-tasks.withType(JavaCompile).configureEach {
+tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
-
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        options.release.set(targetJavaVersion)
-    }
+    options.release.set(17)
 }
 
 processResources {
-    def props = [version: version]
-    inputs.properties props
-    filteringCharset 'UTF-8'
     filesMatching('plugin.yml') {
-        expand props
+        expand(project.properties)
     }
 }
 
-jar {
-    destinationDirectory = file(
-            "/Users/ichan/Desktop/1.20.1 server/plugins"
-    )
+shadowJar {
+    archiveBaseName.set("CCoinCraft")
+    archiveClassifier.set("") // 기본 JAR 파일명 설정
+    archiveVersion.set("1.0") // 버전 설정
+    mergeServiceFiles()
     manifest {
-        attributes 'Main-Class' : 'org.lch.cCoinCraft.CCoinCraft'
+        attributes 'Main-Class': 'org.lch.cCoinCraft.CCoinCraft'
     }
+
+    // 패키지 리로케이션 (선택 사항, 의존성 충돌 방지용)
+    relocate 'com.google.gson', 'org.lch.cCoinCraft.libs.gson'
+    relocate 'okhttp3', 'org.lch.cCoinCraft.libs.okhttp3'
+
+    // JAR 파일 출력 디렉토리 설정 (Mac 경로 예시)
+    destinationDirectory = file("/Users/ichan/Desktop/1.20.1 server/plugins")
+}
+
+tasks.build {
+    dependsOn shadowJar // build 시 shadowJar 작업 실행
 }
