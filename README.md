@@ -1,136 +1,254 @@
-# 💎 비트코인 채굴기 플러그인 개발 기획서 (Chanhyeok Coin Craft, CCC)
-
-Chanhyeok Coin Craft (CCC)는 마인크래프트 서버와 디스코드를 연동하여 사용자들이 게임 내에서 비트코인을 채굴하고 거래할 수 있는 시스템을 개발하는 프로젝트입니다. 이 플러그인은 Spigot 기반의 마인크래프트 1.13+ 서버에서 원활하게 작동하며, Java를 사용하여 안정적인 비트코인 채굴 메커니즘과 서버 경제 시스템과의 통합을 구현하였습니다.
-
----
-
-## 📋 프로젝트 개요
-
-- **프로젝트 명**: 디스코드 연동 마인크래프트 비트코인 채굴 플러그인
-- **목표**: 마인크래프트 서버와 디스코드를 연동하여 사용자들이 비트코인을 광물 채굴을 통해 비트코인 거래 및 채굴하는 시스템 개발
-- **버전**: 마인크래프트 1.13+ 지원, Spigot 기반 서버 환경 최적화. 최신 Material API 활용 가능성을 고려하여 1.19까지 확장 호환성 테스트 예정
+# CCoinCraft (CCC)
+**마인크래프트 비트코인 채굴 & 거래 플러그인**  
+*(Spigot 1.13+ 호환, Vault 연동 및 SQLite 사용)*
 
 ---
 
-## 🛠 기술 스택
-
-- **프로그래밍 언어**: Java
-- **서버 플랫폼**: Spigot
-- **데이터베이스**: SQLite
-- **API 및 라이브러리**: VaultAPI, Discord API (추후)
-- **버전 관리**: Git
+## 프로젝트 소개
+`CCoinCraft (ChanHyeok Coin Craft)`는 마인크래프트 환경에서 비트코인을 직접 채굴하고, 게임 내 경제(Vault 통화) 및 실제 시세(코인게코)와 연동하여 구매/판매/송금 등의 기능을 제공하는 플러그인입니다.  
+1.13 버전 이상에서 동작하며, Spigot 기반 서버에서 테스트되었습니다.  
+추후 디스코드 연동 및 GUI(DeluxeMenu 기반) 확장을 지원할 수 있도록 설계되어 있습니다.
 
 ---
 
-## 🚀 주요 기능
+## 주요 기능
 
-### 1. **비트코인 채굴 시스템**
-- **광물 채굴 시 비트코인 획득**: 플레이어가 다양한 광물 블록(석탄, 철, 금, 다이아몬드, 에메랄드 등)을 채굴할 때마다 설정된 확률에 따라 비트코인(사토시) 획득
-- **광물별 확률 및 보상 설정 가능**: 각 광물별로 획득 확률과 사토시 수량을 `config.yml` 파일에서 조정 가능
+1. **비트코인 채굴**  
+   - 특정 광물(석탄, 철, 금, 다이아몬드, 에메랄드 등)을 채굴 시 설정된 확률에 따라 비트코인을 지급  
+   - 지급되는 사토시(비트코인 단위)와 확률은 `config.yml`에서 조정 가능
 
-### 2. **명령어 및 인터페이스**
-- **비트코인 관련 명령어**: 잔액 확인, 구매/판매, 송금 등의 기능 제공
-- **관리자 전용 명령어**: 플레이어의 비트코인 잔고를 조작할 수 있는 `give`, `set`, `take` 명령어 제공
+2. **비트코인 거래 (명령어 기반)**  
+   - `/ccc btc buy <수량>`: 서버 화폐로 비트코인을 구매  
+   - `/ccc btc sell <수량>`: 보유한 비트코인을 서버 화폐로 판매  
+   - `/ccc btc send <플레이어> <수량>`: 다른 플레이어에게 비트코인 송금
 
-### 3. **데이터베이스 연동**
-- **SQLite 사용**: 거래 기록, 플레이어 정보, 보유 코인 수량 등을 안전하게 관리
-- **큐 시스템 도입**: 데이터베이스 접근 시 안정성을 확보하기 위해 큐(queue) 시스템 사용
+3. **관리자 전용 명령어**  
+   - `/ccc btc give <플레이어> <수량>`  
+   - `/ccc btc set <플레이어> <수량>`  
+   - `/ccc btc take <플레이어> <수량>`  
+   - 플레이어의 비트코인 잔고 직접 수정 가능 (기록은 모두 DB에 저장)
 
-### 4. **VaultAPI 연동**
-- **서버 경제 시스템과 통합**: 채굴한 비트코인을 서버 통화로 환전 가능
+4. **Vault 연동**  
+   - 비트코인을 서버 경제(Vault) 통화와 연동하여,  
+   - 명령어로 비트코인을 구매/판매할 때 Vault API 통해 화폐 차감/지급
 
-### 5. **디스코드 연동 (추후 구현)**
-- **알림 및 관리 기능**: 채굴 진행 상황, 환전 내역, 구매/판매 이벤트 등을 디스코드로 실시간 알림
-- **관리자 전용 명령어 지원**: 플레이어 채굴 금지, 비트코인 지급 등
+5. **SQLite DB 연동**  
+   - 플레이어 보유 코인, 거래 내역, 관리자 조작 로그 등을 DB에 저장  
+   - DB 파일(`database.db`)은 Queue를 통해 비동기로 접근해 서버 렉 방지
 
----
+6. **PAPI 지원(플레이어 가진 비트코인 표시)**  
+   - PlaceholderAPI(선택) 사용 시, 플레이어가 가진 비트코인 표시 가능  
+   - 예: `%ccoincraft_balance%` (추후 실제 플러그인 구현에 따라 값 변동)
 
-## 🔧 세부 기능 설명
+7. **GUI 지원**  
+   - `/ccc gui` 명령어 입력 시 인터페이스(DeluxeMenu 기반 혹은 커스텀 GUI) 표시  
+   - 현재 비트코인 잔액, 코인 시세, 구매/판매/송금 등 메뉴를 GUI로 간편히 이용 가능  
+   - 예시 스크린샷 파일: `images/cCoinCraft_GUI.png` (사용자 깃허브 리포지토리에 업로드하여 README에서 참조)
 
-### 🛡 Admin 전용 명령어 (give, set, take)
-
-#### **명령어 개요**
-Admin 전용 명령어는 게임 내 비트코인 잔고를 직접 조작할 수 있는 기능을 제공합니다. 이러한 명령어는 관리자에게만 허용되며, **MessageManager**를 통해 다국어 지원 메시지를 출력할 수 있도록 설계되었습니다.
-
----
-
-#### **명령어 형식**
-
-1. **비트코인 지급 (Give)**
-    ```php
-    /ccc btc give <플레이어> <수량>
-    ```
-    - 특정 플레이어에게 지정된 수량의 비트코인을 지급
-
-2. **비트코인 설정 (Set)**
-    ```arduino
-    /ccc btc set <플레이어> <수량>
-    ```
-    - 특정 플레이어의 비트코인 잔고를 설정된 수량으로 변경
-
-3. **비트코인 회수 (Take)**
-    ```php
-    /ccc btc take <플레이어> <수량>
-    ```
-    - 특정 플레이어의 비트코인 잔고에서 지정된 수량을 차감 (수량 초과 시 전부 차감)
+8. **추후 기능**  
+   - **디스코드 연동**: 디스코드 채널 알림(채굴/거래), 관리자 명령어, 실시간 시세 조회  
+   - **다른 코인 지원**: ETH, DOGE, USDT 등 GUI에서 구매/판매 가능
 
 ---
 
-#### **메시지 출력 형식 (MessageManager 활용)**
+## 폴더 구조
 
-**성공 메시지**
-- **지급 성공 시 (Give)**
-    ```jsx
-    give_success: “[CCC] Successfully gave <amount> coin to <player>!”
-    give_success_sub: “[CCC] Someone gave you <amount> coin!”
-    ```
-- **설정 성공 시 (Set)**
-    ```jsx
-    set_success: “[CCC] Successfully set <player>'s coin balance to <amount>!”
-    set_success_sub: “[CCC] Someone set your coin balance to <amount>!”
-    ```
-- **회수 성공 시 (Take)**
-    ```jsx
-    take_success: “[CCC] Successfully took <amount> coin from <player>!”
-    take_success_sub: “[CCC] Someone took your <amount> coin!”
-    take_success_all: “[CCC] Someone took your all coin!”
-    ```
+플러그인 메인 Java 패키지는 `org.lch.cCoinCraft`이며, 주요 클래스들은 아래와 같습니다:
 
-**실패 메시지**
-- 잘못된 명령어 형식:
-    ```bash
-    [CCC] Incorrect command format. Usage: /ccc btc (give/set/take) <player> <amount>
-    ```
-- 플레이어를 찾을 수 없음:
-    ```bash
-    [CCC] Player <player> not found!
-    ```
-- 잔고 부족 (Take 명령어):
-    ```csharp
-    [CCC] Insufficient Bitcoin in <player>'s balance!
-    ```
+```
+src/
+└── main/
+    └── java/
+        └── org/
+            └── lch/
+                └── cCoinCraft/
+                    ├── CCoinCraft.java                 (메인 플러그인 클래스)
+                    ├── commands/
+                    │   ├── CccCommand.java             (기본 /ccc 명령어 처리)
+                    │   └── CccCommandTabCompleter.java (탭 완성)
+                    ├── database/
+                    │   ├── BtcHistoryDAO.java
+                    │   ├── DatabaseManager.java
+                    │   ├── HistoryDAO.java
+                    │   ├── PlayerDAO.java
+                    │   └── QueryQueue.java             (비동기 DB 처리)
+                    ├── listeners/
+                    │   ├── BlockBreakListener.java     (광물 채굴 감지)
+                    │   └── PlayerJoinListener.java     (플레이어 접속 이벤트)
+                    └── service/
+                        ├── BtcTransactionService.java   (구매/판매/송금 로직)
+                        ├── CoinGeckoPriceFetcher.java   (실시간 시세 조회)
+                        └── OreRewardService.java        (광물 보상 로직)
+```
 
 ---
 
-#### **거래 내역 저장**
-- **데이터베이스 저장**: 모든 거래 내역은 `SQLite` 데이터베이스에 저장됩니다. (기획서에서는 텍스트 파일로 계획되었으나, 실제 구현에서는 데이터베이스에 저장됨)
-- **저장 예시**:
-    ```yaml
-    [2024-12-21 16:00:00] Admin: AdminUser | Target: Steve | Action: Give | Amount: 10 BTC
-    [2024-12-21 16:05:00] Admin: AdminUser | Target: Alex | Action: Take | Amount: 5 BTC
-    [2024-12-21 16:10:00] Admin: AdminUser | Target: Steve | Action: Set | Amount: 20 BTC
-    ```
+## 설치 및 사용 방법
+
+1. **Spigot 서버 준비**  
+   - 1.13 이상의 Spigot 서버 파일을 준비합니다.
+
+2. **플러그인 설치**  
+   - `CCoinCraft.jar`(빌드된 플러그인 파일)을 서버 `plugins` 폴더에 복사  
+   - 서버를 재시작하여 플러그인 로드
+
+3. **Vault & 기타 의존성**  
+   - 서버가 **Vault**(필수) 플러그인을 구동 중인지 확인합니다.  
+   - **PlaceholderAPI**(선택) 사용 시 설치
+
+4. **config.yml 설정**  
+   - 서버 재시작 후 자동 생성된 `CCoinCraft/config.yml`(예시 경로)에서  
+     광물 채굴 확률, 채굴 시 비트코인 보상, 언어 설정 등을 조정  
+   - 예:
+     ```yml
+        # 거래 수수료 설정 (0 ~ 1 사이의 값)
+        transaction_fee: 0.0001
+        
+        ore-rewards:
+          DIAMOND_ORE:
+            probability: 0.5    # 50% 확률로 지급 (다이아 희소성 고려)
+            amount: 0.00007     #약 10000원
+          DEEPSLATE_DIAMOND_ORE: 
+            probability: 0.5
+            amount: 0.00007
+
+       # ...
+     ```
+
+5. **데이터베이스 설정**  
+   - 기본적으로 `database.db` 파일이 생성됩니다.  
+   - 테이블: 플레이어 정보, 거래내역(`btc_history` 등), 관리자 내역
+
+6. **서버 구동**  
+   - `/ccc reload` 명령어로 설정 리로드 가능  
+   - `/ccc btc ...` 명령어로 각종 거래/관리 기능 이용
 
 ---
 
-#### **권한 체크**
-- **관리자 전용 여부 확인**: 명령어 실행 전에 플레이어가 관리자 권한을 보유하고 있는지 확인
-- **권한 없음 시 처리**: 적절한 오류 메시지 출력
+## 명령어 안내
+
+### 일반 명령어
+
+1. **구매**  
+   ```
+   /ccc btc buy <수량>
+   ```
+   - 보유한 서버 화폐를 사용해 <수량>만큼 비트코인 구매
+
+2. **판매**  
+   ```
+   /ccc btc sell <수량>
+   ```
+   - 보유 중인 비트코인 <수량>을 서버 화폐로 환전
+
+3. **송금**  
+   ```
+   /ccc btc send <플레이어> <수량>
+   ```
+   - 내 비트코인 잔고에서 <수량>을 지정 플레이어에게 송금 (상대가 온라인일 경우에만 가능)
+
+4. **잔고 확인**  
+   ```
+   /ccc btc balance
+   ```
+   - 현재 보유 중인 비트코인 잔고 확인  
+   - (추가로 Vault 화폐 잔고는 `/balance` 등 일반 경제 플러그인 명령어 사용)
+
+5. **GUI 열기**  
+   ```
+   /ccc gui
+   ```
+   - 준비된 GUI 인터페이스를 엽니다. (DeluxeMenu 혹은 커스텀 GUI)  
+   - GUI 내부에서 **코인 시세** 확인, **구매/판매** 등 조작 가능
+
+### 관리자 전용 명령어
+
+1. **비트코인 지급 (Give)**  
+   ```
+   /ccc btc give <플레이어> <수량>
+   ```
+   - 특정 플레이어에게 비트코인 직접 지급
+
+2. **비트코인 설정 (Set)**  
+   ```
+   /ccc btc set <플레이어> <수량>
+   ```
+   - 특정 플레이어의 비트코인 잔고를 <수량>으로 고정
+
+3. **비트코인 회수 (Take)**  
+   ```
+   /ccc btc take <플레이어> <수량>
+   ```
+   - 특정 플레이어의 비트코인을 <수량>만큼 차감  
+   - 만약 해당 플레이어 잔고가 부족하면 전부 차감
+
+> **관리자 명령어 실행 시 DB에 관리자 로그가 남습니다.**  
+> 예) `[날짜시각] Admin: AdminUser | Target: Steve | Action: Give | Amount: 10 BTC`
 
 ---
 
-### 💰 Buy/Sell 명령어
+## GUI 소개
 
-```bash
-/ccc btc buy <수량>: 비트코인 구매
-/ccc btc sell <수량>: 비트코인 판매
+`/ccc gui` 명령어를 입력하면 아래와 같은 GUI가 열립니다:
+
+| ![GUI 예시](images/cCoinCraft_GUI.jpg) |
+
+1. **메인 화면**  
+   - 현재 보유 BTC, 서버 잔액 확인  
+   - 시세 정보 표시(코인게코 연동 값)  
+   - “구매하기” / “판매하기” / “송금하기” 버튼
+
+2. **코인별 화면** (BTC, ETH, DOGE, USDT 등 확장 가능)  
+   - 각 코인 현재가, 보유량 표시  
+   - 간단한 버튼 클릭으로 일정 단위(예: 0.000001 BTC) 구매/판매 가능  
+   - “돌아가기” 버튼으로 메인 화면 복귀
+
+> **이미지 파일 이름**: `images/cCoinCraft_GUI.png`  
+> (원하는 이름으로 GitHub에 업로드 후 README에서 참조)
+
+---
+
+## 거래 기록 예시
+
+- **일반 거래 내역**(`transactions.txt` 혹은 DB 테이블)
+  ```
+  [2024-12-21 15:30:45] Player: Steve | Action: Buy | Amount: 5 BTC | Price: 25,000 currency
+  [2024-12-21 15:32:10] Player: Alex | Action: Sell | Amount: 3 BTC | Price: 15,000 currency
+  [2024-12-21 15:35:00] Sender: Steve | Receiver: Alex | Action: Send | Amount: 2 BTC
+  ```
+- **관리자 조작 내역**(`admin_transactions.txt` 혹은 DB 테이블)
+  ```
+  [2024-12-21 16:00:00] Admin: AdminUser | Target: Steve | Action: Give | Amount: 10 BTC
+  [2024-12-21 16:05:00] Admin: AdminUser | Target: Alex | Action: Take | Amount: 5 BTC
+  [2024-12-21 16:10:00] Admin: AdminUser | Target: Steve | Action: Set | Amount: 20 BTC
+  ```
+
+---
+
+## 향후 확장
+
+1. **디스코드 연동**  
+   - 채굴/거래 실시간 알림, 관리자 제어 명령어 지원  
+   - 디스코드 봇을 통한 현재 BTC 시세 확인 및 서버 반영
+
+2. **추가 코인 지원**  
+   - BTC 외 ETH, DOGE, USDT 등 다양한 암호화폐 추가 가능  
+   - GUI 및 명령어 구조 확장
+
+3. **DeluxeMenu GUI**  
+   - GUI 생성 기능 고도화로, 코인별 상세 화면 및 여러 언어 지원
+
+---
+
+## 라이선스
+
+- 본 플러그인은 자유롭게 수정, 배포 가능합니다. 다만 **Vault** 및 **PlaceholderAPI** 등  
+  서드파티 라이브러리는 각각의 라이선스를 따라야 합니다.
+
+## 문의
+
+- 플러그인 사용 중 이슈가 있거나 기여를 원하시면  
+  [이슈 트래커](https://github.com/사용자/CCoinCraft/issues)  
+  또는 Pull Request를 통해 참여 부탁드립니다.
+
+**감사합니다!**
